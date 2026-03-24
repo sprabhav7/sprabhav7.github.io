@@ -65,22 +65,28 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="bg-gray-50 p-5 rounded-md border border-gray-200 shadow-sm hover:border-red-300 transition">
                             <div class="flex justify-between items-start mb-2">
-                                <span class="text-sm font-mono font-bold text-gray-900">CVE-2026-29062</span>
-                                <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded">High</span>
-                            </div>
-                            <h4 class="font-semibold text-sm mb-1">Nesting Depth Bypass in jackson-core</h4>
-                            <p class="text-xs text-gray-600 mb-3">Discovered a bypass in Jackson's nesting depth constraints when using DataInput, leading to potential StackOverflow DOS.</p>
-                            <a href="https://github.com/FasterXML/jackson-core/security/advisories/GHSA-6v53-7c9g-w56r" class="text-xs font-bold text-red-600 hover:text-red-800">GitHub Advisory &rarr;</a>
-                        </div>
-
-                        <div class="bg-gray-50 p-5 rounded-md border border-gray-200 shadow-sm hover:border-red-300 transition">
-                            <div class="flex justify-between items-start mb-2">
                                 <span class="text-sm font-mono font-bold text-gray-900">CVE-2026-27784</span>
                                 <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded">High</span>
                             </div>
                             <h4 class="font-semibold text-sm mb-1">Integer Overflow in nginx MP4 Module</h4>
                             <p class="text-xs text-gray-600 mb-3">Identified an integer overflow in nginx's MP4 module on 32-bit systems, allowing for heap information disclosure.</p>
-                            <a href="/blog/nginx-mp4-overflow.html" class="text-xs font-bold text-red-600 hover:text-red-800">Research Post &rarr;</a>
+                            <div class="flex gap-4">
+                                <a href="/blog/nginx-mp4-overflow.html" class="text-xs font-bold text-red-600 hover:text-red-800">Write-up &rarr;</a>
+                                <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-27784" class="text-xs font-bold text-red-600 hover:text-red-800">NVD &rarr;</a>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-50 p-5 rounded-md border border-gray-200 shadow-sm hover:border-red-300 transition">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-sm font-mono font-bold text-gray-900">CVE-2026-29062</span>
+                                <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded">High</span>
+                            </div>
+                            <h4 class="font-semibold text-sm mb-1">Nesting Depth Bypass in jackson-core</h4>
+                            <p class="text-xs text-gray-600 mb-3">Discovered a bypass in Jackson's nesting depth constraints when using DataInput, leading to potential StackOverflow DOS.</p>
+                            <div class="flex gap-4">
+                                <a href="/blog/jackson-datainput-nesting-bypass.html" class="text-xs font-bold text-red-600 hover:text-red-800">Write-up &rarr;</a>
+                                <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-29062" class="text-xs font-bold text-red-600 hover:text-red-800">NVD &rarr;</a>
+                            </div>
                         </div>
                     </div>
                 </section>
