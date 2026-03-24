@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jackson-core: Nesting Depth Constraint Bypass in DataInput Parser | Research Blog</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .code-block { background: #f9fafb; color: #111827; padding: 1.5rem; border-radius: 0.375rem; border: 1px solid #e5e7eb; font-family: ui-monospace, monospace; font-size: 0.875rem; line-height: 1.7; overflow-x: auto; margin: 1.5rem 0; }
+        .highlight { color: #dc2626; font-weight: 700; }
+        .comment { color: #6b7280; font-style: italic; }
+        .keyword { color: #b91c1c; font-weight: 800; }
+    </style>
+</head>
+<body class="bg-white text-gray-900 antialiased selection:bg-red-100 selection:text-red-900">
+    <div class="max-w-5xl mx-auto py-16 px-6 sm:px-12">
+        
+        <header class="mb-16 border-b border-gray-200 pb-10">
+            <a href="/blog/index.html" class="text-sm font-bold text-gray-500 hover:text-red-600 transition mb-6 inline-block tracking-tight">&larr; Back to Research Index</a>
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">Nesting Depth Bypass in DataInput Parser</h1>
+            <div class="flex items-center gap-4 text-xs font-bold text-red-600 uppercase tracking-widest">
+                <span>Vulnerability Research</span>
+                <span class="text-gray-300">|</span>
+                <span class="text-gray-500">February 18, 2026</span>
+            </div>
+        </header>
+
+        <main class="space-y-20">
+
+            <section>
+                <div class="bg-gray-50 p-6 rounded-md border border-gray-200 space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVSS 4.0 Score</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">8.7 (High)</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CWE Identification</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">CWE-770</span>
+                        </div>
+                    </div>
+                    <div class="pt-4 border-t border-gray-200">
+                        <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVSS Vector String</span>
+                        <code class="text-xs font-mono text-gray-600 break-all block leading-normal">CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N</code>
+                    </div>
+                    <div class="pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">Affected Versions</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">jackson-core 3.x (up to 3.1.0-SNAPSHOT)</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">Fixed In</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">jackson-core 3.1.0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Summary</h2>
+                <p class="text-base text-gray-700 leading-relaxed max-w-4xl">
+                    A security flaw was discovered in the <code>UTF8DataInputJsonParser</code> component of <code>jackson-core</code>, specifically affecting applications that parse JSON from <code>java.io.DataInput</code> sources. The vulnerability allows for a complete bypass of the <code>maxNestingDepth</code> constraint, which is designed to prevent stack overflow attacks. This occurs because the parser invokes internal context methods directly instead of using the parser's own validating helper methods. As a result, an attacker can craft deeply nested JSON structures that exhaust the thread's stack memory, leading to an immediate Denial-of-Service (DoS).
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Impact</h2>
+                <div class="space-y-8">
+                    <ol class="list-decimal pl-5 space-y-4 text-gray-700 font-medium">
+                        <li><span class="text-gray-900 font-bold">Unchecked Recursion:</span> The parser allows nested structures to reach arbitrary depths, bypassing the default security limit of 500.</li>
+                        <li><span class="text-gray-900 font-bold">Stack Overflow Error:</span> Each new nesting level consumes a stack frame; extreme depth leads to immediate process termination.</li>
+                        <li><span class="text-gray-900 font-bold">Service Disruption:</span> A single malicious payload can crash the worker thread, causing a targeted Denial-of-Service in critical application paths.</li>
+                    </ol>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Description</h2>
+                <div class="space-y-6 text-gray-700 leading-relaxed">
+                    <p>
+                        The vulnerability stems from an inconsistency in how <code>UTF8DataInputJsonParser</code> handles the transition into new JSON objects or arrays. In most Jackson parsers, the <code>createChildArrayContext()</code> method of the parser itself is called. This method contains a critical call to <code>validateNestingDepth()</code>.
+                    </p>
+
+                    <!-- Call Path Diagram -->
+                    <div class="bg-gray-50 border border-gray-200 rounded-md p-5 my-4">
+                        <p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">Call Path: Vulnerable vs. Correct</p>
+                        <svg viewBox="0 0 680 240" xmlns="http://www.w3.org/2000/svg" class="w-full max-w-2xl mx-auto block">
+                            <defs>
+                                <marker id="da" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
+                                    <path d="M0,0 L7,3.5 L0,7 Z" fill="#dc2626"/>
+                                </marker>
+                                <marker id="ga" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
+                                    <path d="M0,0 L7,3.5 L0,7 Z" fill="#16a34a"/>
+                                </marker>
+                            </defs>
+
+                            <!-- LEFT: Vulnerable path -->
+                            <text x="10" y="18" fill="#dc2626" font-size="11" font-family="monospace" font-weight="bold">VULNERABLE PATH (DataInput parser)</text>
+
+                            <rect x="10" y="28" width="270" height="30" rx="3" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+                            <text x="145" y="48" text-anchor="middle" fill="#991b1b" font-size="11" font-family="monospace">_nextTokenNotInObject() sees '['</text>
+
+                            <line x1="145" y1="58" x2="145" y2="82" stroke="#dc2626" stroke-width="1.5" marker-end="url(#da)"/>
+
+                            <!-- box2: taller (44px) to hold two lines -->
+                            <rect x="10" y="82" width="270" height="44" rx="3" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+                            <text x="145" y="100" text-anchor="middle" fill="#991b1b" font-size="11" font-family="monospace">_streamReadContext</text>
+                            <text x="145" y="116" text-anchor="middle" fill="#991b1b" font-size="11" font-family="monospace">.createChildArrayContext()</text>
+
+                            <line x1="145" y1="126" x2="145" y2="148" stroke="#dc2626" stroke-width="1.5" marker-end="url(#da)"/>
+
+                            <rect x="10" y="148" width="270" height="30" rx="3" fill="#f3f4f6" stroke="#d1d5db" stroke-width="1.5"/>
+                            <text x="145" y="168" text-anchor="middle" fill="#374151" font-size="11" font-family="monospace">JsonReadContext (no constraints ref)</text>
+
+                            <line x1="145" y1="178" x2="145" y2="200" stroke="#dc2626" stroke-width="1.5" marker-end="url(#da)"/>
+                            <rect x="10" y="200" width="270" height="28" rx="3" fill="#dc2626"/>
+                            <text x="145" y="218" text-anchor="middle" fill="white" font-size="11" font-family="monospace" font-weight="bold">❌ No depth check — BYPASS</text>
+
+                            <!-- RIGHT: Correct path (same y positions as left) -->
+                            <text x="390" y="18" fill="#16a34a" font-size="11" font-family="monospace" font-weight="bold">CORRECT PATH (other parsers)</text>
+
+                            <rect x="390" y="28" width="270" height="30" rx="3" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
+                            <text x="525" y="48" text-anchor="middle" fill="#14532d" font-size="11" font-family="monospace">parser sees '[' / '{'</text>
+
+                            <line x1="525" y1="58" x2="525" y2="82" stroke="#16a34a" stroke-width="1.5" marker-end="url(#ga)"/>
+
+                            <rect x="390" y="82" width="270" height="44" rx="3" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
+                            <text x="525" y="109" text-anchor="middle" fill="#14532d" font-size="11" font-family="monospace">parser.createChildArrayContext()</text>
+
+                            <line x1="525" y1="126" x2="525" y2="148" stroke="#16a34a" stroke-width="1.5" marker-end="url(#ga)"/>
+
+                            <rect x="390" y="148" width="270" height="30" rx="3" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
+                            <text x="525" y="168" text-anchor="middle" fill="#14532d" font-size="11" font-family="monospace">validateNestingDepth() ← checks limit</text>
+
+                            <line x1="525" y1="178" x2="525" y2="200" stroke="#16a34a" stroke-width="1.5" marker-end="url(#ga)"/>
+                            <rect x="390" y="200" width="270" height="28" rx="3" fill="#16a34a"/>
+                            <text x="525" y="218" text-anchor="middle" fill="white" font-size="11" font-family="monospace" font-weight="bold">✓ StreamConstraintsException thrown</text>
+                        </svg>
+                    </div>
+
+                    <div class="code-block">
+                        <span class="comment">// The Vulnerable Implementation (UTF8DataInputJsonParser, lines 689/692)</span><br>
+                        <span class="keyword">if</span> (ch == <span class="highlight">'['</span>) {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// BUG: Directly calling the context, bypassing the validator in the parser</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;_streamReadContext = <span class="highlight">_streamReadContext.createChildArrayContext(row, col);</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">return</span> JsonToken.START_ARRAY;<br>
+                        }
+                    </div>
+
+                    <p>
+                        Because the <code>JsonReadContext</code> object does not have access to the parser's <code>StreamReadConstraints</code>, it cannot perform depth validation. When the <code>UTF8DataInputJsonParser</code> calls the context method directly, it bypasses the "gatekeeper" logic in the parser. An attacker can then nest arrays thousands of levels deep, each one adding a new frame to the JVM stack until it overflows.
+                    </p>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Conclusion</h2>
+                <p class="text-base text-gray-700 leading-relaxed mb-6">
+                    This bypass demonstrates the risks inherent in direct object delegation when security logic is maintained at a higher abstraction layer. To remediate this vulnerability, applications using Jackson with <code>DataInput</code> sources should upgrade to <strong>jackson-core 3.1.0</strong> or later. This version refactors the <code>DataInput</code> parser to use the standard, validated context-creation path, ensuring consistent enforcement of nesting limits across all input sources.
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">References</h2>
+                <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700 font-medium">
+                    <li>
+                        <a href="https://github.com/FasterXML/jackson-core/security/advisories/GHSA-6v53-7c9g-w56r" class="text-red-600 hover:underline">GitHub Advisory: GHSA-6v53-7c9g-w56r</a>
+                    </li>
+                    <li>
+                        <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-29062" class="text-red-600 hover:underline">NVD Record: CVE-2026-29062</a>
+                    </li>
+                    <li>
+                        <a href="https://www.cve.org/CVERecord?id=CVE-2026-29062" class="text-red-600 hover:underline">CVE.org Record: CVE-2026-29062</a>
+                    </li>
+                </ul>
+            </section>
+
+            <section class="mt-12">
+                <p class="text-sm text-gray-600 italic">
+                    Special thanks to the Jackson maintainers for their exceptionally quick response and effective mitigations in addressing these findings.
+                </p>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog | Prabhav Srinath</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-white text-gray-900 antialiased selection:bg-red-100 selection:text-red-900">
+    <div class="max-w-5xl mx-auto py-16 px-6 sm:px-12">
+        
+        <header class="mb-16 border-b border-gray-200 pb-8">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-3">Research Blog</h1>
+            <p class="text-xl text-gray-600 font-light">Deep dives into vulnerabilities, exploit dev, and security research.</p>
+            
+            <div class="mt-6 flex flex-wrap gap-6 text-sm font-semibold">
+                <a href="/index.html" class="text-gray-500 hover:text-red-600 transition">&larr; Back to Home</a>
+                <a href="https://github.com/yourusername" class="text-gray-500 hover:text-red-600 transition">GitHub</a>
+            </div>
+        </header>
+
+        <main class="space-y-16">
+            
+            <article class="border-l-2 border-red-600 pl-5 md:pl-8">
+                <a href="/blog/nginx-mp4-overflow.html" class="group">
+                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">Deep Dive: Integer Overflow in nginx ngx_http_mp4_module</h2>
+                </a>
+                <div class="flex items-center gap-3 mt-2 mb-4">
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Exploit Development</span>
+                    <span class="text-xs text-gray-500 font-medium">March 2026</span>
+                </div>
+                <p class="text-base text-gray-700 leading-relaxed max-w-3xl">
+                    An integer overflow vulnerability in nginx's MP4 module allows for heap out-of-bounds reads and potential DoS. This post details how large entry counts bypass security checks on 32-bit platforms.
+                </p>
+                <a href="/blog/nginx-mp4-overflow.html" class="inline-block mt-4 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
+            </article>
+
+            <article class="border-l-2 border-red-600 pl-5 md:pl-8">
+                <a href="/blog/jackson-async-number-bypass.html" class="group">
+                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">Jackson-core: Number Length Constraint Bypass in Async Parsers</h2>
+                </a>
+                <div class="flex items-center gap-3 mt-2 mb-4">
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Vulnerability Research</span>
+                    <span class="text-xs text-gray-500 font-medium">February 2026</span>
+                </div>
+                <p class="text-base text-gray-700 leading-relaxed max-w-3xl">
+                    The async JSON parser in jackson-core fails to enforce maxNumberLength constraints, leading to memory and CPU exhaustion. This research explores the missing validation step in the non-blocking code path.
+                </p>
+                <a href="/blog/jackson-async-number-bypass.html" class="inline-block mt-4 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
+            </article>
+
+            <article class="border-l-2 border-red-600 pl-5 md:pl-8">
+                <a href="/blog/jackson-datainput-nesting-bypass.html" class="group">
+                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">Jackson-core: Nesting Depth Constraint Bypass in DataInput Parser</h2>
+                </a>
+                <div class="flex items-center gap-3 mt-2 mb-4">
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Vulnerability Research</span>
+                    <span class="text-xs text-gray-500 font-medium">February 2026</span>
+                </div>
+                <p class="text-base text-gray-700 leading-relaxed max-w-3xl">
+                    UTF8DataInputJsonParser bypasses nesting depth limits, potentially causing StackOverflowErrors and DoS. This post details how direct parsing context creation skips critical depth validation.
+                </p>
+                <a href="/blog/jackson-datainput-nesting-bypass.html" class="inline-block mt-4 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
+            </article>
+
+        </main>
+    </div>
+</body>
+</html>

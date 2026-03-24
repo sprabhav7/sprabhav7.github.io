@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jackson-core: Number Length Constraint Bypass in Async Parsers | Research Blog</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .code-block { background: #f9fafb; color: #111827; padding: 1.5rem; border-radius: 0.375rem; border: 1px solid #e5e7eb; font-family: ui-monospace, monospace; font-size: 0.875rem; line-height: 1.7; overflow-x: auto; margin: 1.5rem 0; }
+        .highlight { color: #dc2626; font-weight: 700; }
+        .comment { color: #6b7280; font-style: italic; }
+        .keyword { color: #b91c1c; font-weight: 800; }
+    </style>
+</head>
+<body class="bg-white text-gray-900 antialiased selection:bg-red-100 selection:text-red-900">
+    <div class="max-w-5xl mx-auto py-16 px-6 sm:px-12">
+        
+        <header class="mb-16 border-b border-gray-200 pb-10">
+            <a href="/blog/index.html" class="text-sm font-bold text-gray-500 hover:text-red-600 transition mb-6 inline-block tracking-tight">&larr; Back to Research Index</a>
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">Jackson-core: Number Length Bypass in Async Parsers</h1>
+            <div class="flex items-center gap-4 text-xs font-bold text-red-600 uppercase tracking-widest">
+                <span>Vulnerability Research</span>
+                <span class="text-gray-300">|</span>
+                <span class="text-gray-500">February 18, 2026</span>
+            </div>
+        </header>
+
+        <main class="space-y-20">
+
+            <section>
+                <div class="bg-gray-50 p-6 rounded-md border border-gray-200 space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVSS 4.0 Score</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">8.7 (High)</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CWE Identification</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">CWE-770</span>
+                        </div>
+                    </div>
+                    <div class="pt-4 border-t border-gray-200">
+                        <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVSS Vector String</span>
+                        <code class="text-xs font-mono text-gray-600 break-all block leading-normal">CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N</code>
+                    </div>
+                    <div class="pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">Affected Versions</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">jackson-core 3.x (up to 3.1.0-SNAPSHOT)</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">Fixed In</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">jackson-core 3.1.0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Summary</h2>
+                <p class="text-base text-gray-700 leading-relaxed max-w-4xl">
+                    A significant security oversight was identified in the asynchronous JSON parser of <code>jackson-core</code>. While the library implements a <code>maxNumberLength</code> constraint (default: 1,000 characters) to mitigate resource exhaustion attacks, this constraint is only enforced in the synchronous parsing path. The non-blocking (async) implementation bypasses the validation layer entirely by directly finalizing number tokens without calling the necessary length verification methods. This inconsistency allows remote attackers to trigger excessive memory and CPU consumption in reactive applications.
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Impact</h2>
+                <div class="space-y-8">
+                    <ol class="list-decimal pl-5 space-y-4 text-gray-700 font-medium">
+                        <li><span class="text-gray-900 font-bold">Unbounded Memory Allocation:</span> Maliciously long numbers force the <code>TextBuffer</code> to grow indefinitely, leading to <code>OutOfMemoryError</code>.</li>
+                        <li><span class="text-gray-900 font-bold">CPU Exhaustion:</span> Processing large numbers during subsequent <code>BigInteger</code> conversion triggers O(n²) operations, pinning worker threads.</li>
+                        <li><span class="text-gray-900 font-bold">Application Instability:</span> The resource starvation can crash the entire JVM, affecting all concurrent users in a shared environment.</li>
+                    </ol>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Description</h2>
+                <div class="space-y-6 text-gray-700 leading-relaxed">
+                    <p>
+                        The root cause is an architectural inconsistency between <code>ParserBase</code> and <code>NonBlockingUtf8JsonParserBase</code>. In the synchronous path, number parsing lifecycle always concludes with a call to <code>resetInt()</code> or <code>resetFloat()</code>, which are the authoritative points for length validation.
+                    </p>
+
+                    <!-- Sync vs Async Path Diagram -->
+                    <div class="bg-gray-50 border border-gray-200 rounded-md p-5 my-4">
+                        <p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">Number Parsing Lifecycle: Sync vs. Async</p>
+                        <svg viewBox="0 0 680 260" xmlns="http://www.w3.org/2000/svg" class="w-full max-w-2xl mx-auto block">
+                            <defs>
+                                <marker id="sa" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
+                                    <path d="M0,0 L7,3.5 L0,7 Z" fill="#16a34a"/>
+                                </marker>
+                                <marker id="ra" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
+                                    <path d="M0,0 L7,3.5 L0,7 Z" fill="#dc2626"/>
+                                </marker>
+                            </defs>
+
+                            <!-- LEFT: Sync path -->
+                            <text x="10" y="18" fill="#16a34a" font-size="11" font-family="monospace" font-weight="bold">SYNC PATH (safe)</text>
+
+                            <rect x="10" y="28" width="270" height="28" rx="3" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
+                            <text x="145" y="47" text-anchor="middle" fill="#14532d" font-size="11" font-family="monospace">digits accumulated in TextBuffer</text>
+
+                            <line x1="145" y1="56" x2="145" y2="76" stroke="#16a34a" stroke-width="1.5" marker-end="url(#sa)"/>
+
+                            <rect x="10" y="76" width="270" height="28" rx="3" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
+                            <text x="145" y="95" text-anchor="middle" fill="#14532d" font-size="11" font-family="monospace">resetInt() / resetFloat() called</text>
+
+                            <line x1="145" y1="104" x2="145" y2="124" stroke="#16a34a" stroke-width="1.5" marker-end="url(#sa)"/>
+
+                            <rect x="10" y="124" width="270" height="28" rx="3" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
+                            <text x="145" y="143" text-anchor="middle" fill="#14532d" font-size="11" font-family="monospace">validateIntegerLength() checks limit</text>
+
+                            <line x1="145" y1="152" x2="145" y2="172" stroke="#16a34a" stroke-width="1.5" marker-end="url(#sa)"/>
+
+                            <rect x="10" y="172" width="270" height="28" rx="3" fill="#16a34a"/>
+                            <text x="145" y="191" text-anchor="middle" fill="white" font-size="11" font-family="monospace" font-weight="bold">✓ StreamConstraintsException thrown</text>
+
+                            <!-- RIGHT: Async path -->
+                            <text x="390" y="18" fill="#dc2626" font-size="11" font-family="monospace" font-weight="bold">ASYNC PATH (vulnerable)</text>
+
+                            <rect x="390" y="28" width="270" height="28" rx="3" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+                            <text x="525" y="47" text-anchor="middle" fill="#991b1b" font-size="11" font-family="monospace">digits accumulated in TextBuffer</text>
+
+                            <line x1="525" y1="56" x2="525" y2="76" stroke="#dc2626" stroke-width="1.5" marker-end="url(#ra)"/>
+
+                            <rect x="390" y="76" width="270" height="28" rx="3" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+                            <text x="525" y="95" text-anchor="middle" fill="#991b1b" font-size="11" font-family="monospace">_valueComplete() called directly</text>
+
+                            <line x1="525" y1="104" x2="525" y2="124" stroke="#dc2626" stroke-width="1.5" marker-end="url(#ra)"/>
+
+                            <rect x="390" y="124" width="270" height="28" rx="3" fill="#f3f4f6" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="5,3"/>
+                            <text x="525" y="143" text-anchor="middle" fill="#9ca3af" font-size="11" font-family="monospace">validateIntegerLength() ← SKIPPED</text>
+
+                            <line x1="525" y1="152" x2="525" y2="172" stroke="#dc2626" stroke-width="1.5" marker-end="url(#ra)"/>
+
+                            <rect x="390" y="172" width="270" height="28" rx="3" fill="#dc2626"/>
+                            <text x="525" y="191" text-anchor="middle" fill="white" font-size="11" font-family="monospace" font-weight="bold">❌ Unbounded number accepted</text>
+
+                            <!-- Resource exhaustion note -->
+                            <rect x="390" y="215" width="270" height="38" rx="3" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5"/>
+                            <text x="525" y="231" text-anchor="middle" fill="#92400e" font-size="10" font-family="monospace">TextBuffer grows unbounded → OOM</text>
+                            <text x="525" y="247" text-anchor="middle" fill="#92400e" font-size="10" font-family="monospace">BigInteger conversion → O(n²) CPU</text>
+                        </svg>
+                    </div>
+
+                    <div class="code-block">
+                        <span class="comment">// Vulnerable Async Path Implementation</span><br>
+                        <span class="keyword">protected</span> <span class="keyword">void</span> _finishNumberIntegralPart(<span class="keyword">char</span>[] outBuf, <span class="keyword">int</span> outPtr) {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;_textBuffer.setCurrentLength(outPtr);<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// BUG: Directly finalizes token, skipping resetInt() / validateIntegerLength()</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="highlight">_valueComplete(JsonToken.VALUE_NUMBER_INT);</span><br>
+                        }
+                    </div>
+
+                    <p>
+                        By skipping the <code>reset*</code> lifecycle methods, the async parser never executes the code that checks the <code>StreamReadConstraints</code>. This means that while a sync parser will throw a <code>StreamConstraintsException</code> for a 5,000-digit number, the async parser will happily store it in memory, allowing for easy exploitation via large JSON payloads.
+                    </p>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Conclusion</h2>
+                <p class="text-base text-gray-700 leading-relaxed mb-6">
+                    This vulnerability highlights that security constraints must be enforced at the lowest common denominator in the parsing pipeline. Developers using Jackson's non-blocking parser in Spring WebFlux or other reactive environments should immediately upgrade to <strong>jackson-core 3.1.0</strong> or later. This update ensures that both synchronous and asynchronous parsing paths correctly route through the length validation logic.
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">References</h2>
+                <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700 font-medium">
+                    <li>
+                        <a href="https://github.com/FasterXML/jackson-core/security/advisories/GHSA-72hv-8253-57qq" class="text-red-600 hover:underline">GitHub Advisory: GHSA-72hv-8253-57qq</a>
+                    </li>
+                </ul>
+            </section>
+
+            <section class="mt-12">
+                <p class="text-sm text-gray-600 italic">
+                    Special thanks to the Jackson maintainers for their exceptionally quick response and effective mitigations in addressing these findings.
+                </p>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

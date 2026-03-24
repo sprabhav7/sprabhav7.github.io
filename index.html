@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prabhav Srinath | Security Researcher</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-white text-gray-900 antialiased selection:bg-red-100 selection:text-red-900">
+    <div class="max-w-5xl mx-auto py-16 px-6 sm:px-12">
+        
+        <header class="mb-16 border-b border-gray-200 pb-8">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-3">Prabhav Srinath</h1>
+            <p class="text-xl text-gray-600 font-light">Product Security Engineer | Security Researcher</p>
+            
+            <div class="mt-6 flex flex-wrap gap-6 text-sm font-semibold">
+                <a href="/blog/index.html" class="text-gray-500 hover:text-red-600 transition">Read My Blog</a>
+                <a href="https://github.com/sprabhav7" class="text-gray-500 hover:text-red-600 transition">GitHub</a>
+                <a href="https://linkedin.com/in/prabhav-srinath" class="text-gray-500 hover:text-red-600 transition">LinkedIn</a>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-16">
+            
+            <div class="md:col-span-4 space-y-12">
+                
+                <section>
+                    <h2 class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">Core Competencies</h2>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Product Security</span>
+                        <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Vulnerability Research</span>
+                        <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Reverse Engineering</span>
+                        <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Secure Code Review</span>
+                        <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Risk Informed Threat Modeling</span>
+                        <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">CI/CD Security</span>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">Certifications</h2>
+                    <ul class="text-sm space-y-2 text-gray-800 font-medium">
+                        <li>OSWE (Offensive Security Web Expert)</li>
+                        <li>CompTIA PenTest+</li>
+                        <li>CompTIA Security+</li>
+                        <li>CompTIA CNVP</li>
+                        <li>CRTO (Certified Red Team Operator) - In Progress</li>
+                    </ul>
+                </section>
+            </div>
+
+            <div class="md:col-span-8 space-y-16">
+                
+                <section>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">Vulnerability Research & CVEs</h2>
+                    <p class="text-sm text-gray-600 mb-6">A selection of vulnerabilities I have discovered and responsibly disclosed, primarily focusing on open-source infrastructure and enterprise applications.</p>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-gray-50 p-5 rounded-md border border-gray-200 shadow-sm hover:border-red-300 transition">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-sm font-mono font-bold text-gray-900">CVE-2026-29062</span>
+                                <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded">High</span>
+                            </div>
+                            <h4 class="font-semibold text-sm mb-1">Nesting Depth Bypass in jackson-core</h4>
+                            <p class="text-xs text-gray-600 mb-3">Discovered a bypass in Jackson's nesting depth constraints when using DataInput, leading to potential StackOverflow DOS.</p>
+                            <a href="https://github.com/FasterXML/jackson-core/security/advisories/GHSA-6v53-7c9g-w56r" class="text-xs font-bold text-red-600 hover:text-red-800">GitHub Advisory &rarr;</a>
+                        </div>
+
+                        <div class="bg-gray-50 p-5 rounded-md border border-gray-200 shadow-sm hover:border-red-300 transition">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-sm font-mono font-bold text-gray-900">CVE-2026-27784</span>
+                                <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded">High</span>
+                            </div>
+                            <h4 class="font-semibold text-sm mb-1">Integer Overflow in nginx MP4 Module</h4>
+                            <p class="text-xs text-gray-600 mb-3">Identified an integer overflow in nginx's MP4 module on 32-bit systems, allowing for heap information disclosure.</p>
+                            <a href="/blog/nginx-mp4-overflow.html" class="text-xs font-bold text-red-600 hover:text-red-800">Research Post &rarr;</a>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">Latest Write-ups</h2>
+                    
+                    <div class="space-y-8">
+                        <div class="border-l-2 border-red-600 pl-5">
+                            <a href="/blog/nginx-mp4-overflow.html" class="group">
+                                <h3 class="font-bold text-gray-900 text-lg group-hover:text-red-600 transition">Deep Dive: Integer Overflow in nginx ngx_http_mp4_module</h3>
+                            </a>
+                            <p class="text-xs text-gray-500 mb-2 font-medium mt-1">March 2026</p>
+                            <p class="text-sm text-gray-700 leading-relaxed">
+                                An integer overflow vulnerability in nginx's MP4 module allows for heap out-of-bounds reads and potential DoS on 32-bit platforms.
+                            </p>
+                            <a href="/blog/nginx-mp4-overflow.html" class="inline-block mt-3 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
+                        </div>
+
+                        <div class="border-l-2 border-red-600 pl-5">
+                            <a href="/blog/jackson-async-number-bypass.html" class="group">
+                                <h3 class="font-bold text-gray-900 text-lg group-hover:text-red-600 transition">Jackson-core: Number Length Constraint Bypass in Async Parsers</h3>
+                            </a>
+                            <p class="text-xs text-gray-500 mb-2 font-medium mt-1">February 2026</p>
+                            <p class="text-sm text-gray-700 leading-relaxed">
+                                The async JSON parser in jackson-core fails to enforce maxNumberLength constraints, leading to potential memory and CPU exhaustion.
+                            </p>
+                            <a href="/blog/jackson-async-number-bypass.html" class="inline-block mt-3 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
+                        </div>
+
+                        <div class="border-l-2 border-red-600 pl-5">
+                            <a href="/blog/jackson-datainput-nesting-bypass.html" class="group">
+                                <h3 class="font-bold text-gray-900 text-lg group-hover:text-red-600 transition">Jackson-core: Nesting Depth Constraint Bypass in DataInput Parser</h3>
+                            </a>
+                            <p class="text-xs text-gray-500 mb-2 font-medium mt-1">February 2026</p>
+                            <p class="text-sm text-gray-700 leading-relaxed">
+                                UTF8DataInputJsonParser bypasses nesting depth limits, potentially causing StackOverflowErrors during JSON processing.
+                            </p>
+                            <a href="/blog/jackson-datainput-nesting-bypass.html" class="inline-block mt-3 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <a href="/blog/index.html" class="text-sm font-bold text-gray-900 hover:text-red-600 transition border-b-2 border-gray-200 hover:border-red-600 pb-1">View all posts &rarr;</a>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
