@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deep Dive: Integer Overflow in nginx ngx_http_mp4_module | Research Blog</title>
+    <title>Deep Dive: Integer Overflow in nginx ngx_http_mp4_module causes Out of Bounds Read/Write | Research Blog</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
@@ -19,7 +19,7 @@
         
         <header class="mb-16 border-b border-gray-200 pb-10">
             <a href="/blog/index.html" class="text-sm font-bold text-gray-500 hover:text-red-600 transition mb-6 inline-block tracking-tight">&larr; Back to Research Index</a>
-            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">Deep Dive: Integer Overflow in nginx ngx_http_mp4_module</h1>
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">Deep Dive: Integer Overflow in nginx ngx_http_mp4_module causes Out of Bounds Read/Write</h1>
             <div class="flex items-center gap-4 text-xs font-bold text-red-600 uppercase tracking-widest">
                 <span>Vulnerability Research</span>
                 <span class="text-gray-300">|</span>
@@ -28,7 +28,6 @@
         </header>
 
         <main class="space-y-20">
-
             <section>
                 <div class="bg-gray-50 p-6 rounded-md border border-gray-200 space-y-4">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -44,6 +43,16 @@
                     <div class="pt-4 border-t border-gray-200">
                         <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVSS Vector String</span>
                         <code class="text-xs font-mono text-gray-600 break-all block leading-normal">CVSS:4.0/AV:L/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N</code>
+                    </div>
+                    <div class="pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVE</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">CVE-2026-27784</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">Affected Component</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">nginx &mdash; ngx_http_mp4_module</span>
+                        </div>
                     </div>
                 </div>
             </section>

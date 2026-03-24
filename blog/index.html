@@ -23,10 +23,10 @@
         </header>
 
         <main class="space-y-16">
-            
+
             <article class="border-l-2 border-red-600 pl-5 md:pl-8">
                 <a href="/blog/nginx-mp4-overflow.html" class="group">
-                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">Deep Dive: Integer Overflow in nginx ngx_http_mp4_module</h2>
+                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">Deep Dive: Integer Overflow in nginx ngx_http_mp4_module causes Out of Bounds Read/Write</h2>
                 </a>
                 <div class="flex items-center gap-3 mt-2 mb-4">
                     <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Vulnerability Research</span>
@@ -39,22 +39,8 @@
             </article>
 
             <article class="border-l-2 border-red-600 pl-5 md:pl-8">
-                <a href="/blog/jackson-async-number-bypass.html" class="group">
-                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">Jackson-core: Number Length Constraint Bypass in Async Parsers</h2>
-                </a>
-                <div class="flex items-center gap-3 mt-2 mb-4">
-                    <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Vulnerability Research</span>
-                    <span class="text-xs text-gray-500 font-medium">February 2026</span>
-                </div>
-                <p class="text-base text-gray-700 leading-relaxed max-w-3xl">
-                    The async JSON parser in jackson-core fails to enforce maxNumberLength constraints, leading to memory and CPU exhaustion. This research explores the missing validation step in the non-blocking code path.
-                </p>
-                <a href="/blog/jackson-async-number-bypass.html" class="inline-block mt-4 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
-            </article>
-
-            <article class="border-l-2 border-red-600 pl-5 md:pl-8">
                 <a href="/blog/jackson-datainput-nesting-bypass.html" class="group">
-                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">Jackson-core: Nesting Depth Constraint Bypass in DataInput Parser</h2>
+                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">Jackson-core: Nesting Depth Bypass in DataInput Parser Leads to Unsafe Deserialization</h2>
                 </a>
                 <div class="flex items-center gap-3 mt-2 mb-4">
                     <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Vulnerability Research</span>
@@ -64,6 +50,20 @@
                     UTF8DataInputJsonParser bypasses nesting depth limits, potentially causing StackOverflowErrors and DoS. This post details how direct parsing context creation skips critical depth validation.
                 </p>
                 <a href="/blog/jackson-datainput-nesting-bypass.html" class="inline-block mt-4 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
+            </article>
+
+            <article class="border-l-2 border-red-600 pl-5 md:pl-8">
+                <a href="/blog/jackson-async-number-bypass.html" class="group">
+                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">Jackson-core: Number Length Constraint Bypass in Async Parsers Leads to Denial of Service (DoS)</h2>
+                </a>
+                <div class="flex items-center gap-3 mt-2 mb-4">
+                    <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Vulnerability Research</span>
+                    <span class="text-xs text-gray-500 font-medium">January 26, 2026</span>
+                </div>
+                <p class="text-base text-gray-700 leading-relaxed max-w-3xl">
+                    The async JSON parser in jackson-core fails to enforce maxNumberLength constraints, leading to memory and CPU exhaustion. This research explores the missing validation step in the non-blocking code path.
+                </p>
+                <a href="/blog/jackson-async-number-bypass.html" class="inline-block mt-4 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
             </article>
 
         </main>

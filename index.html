@@ -62,30 +62,32 @@
                     <h2 class="text-2xl font-bold text-gray-900 mb-6">Vulnerability Research & CVEs</h2>
                     <p class="text-sm text-gray-600 mb-6">A selection of vulnerabilities I have discovered and responsibly disclosed, primarily focusing on open-source infrastructure and enterprise applications.</p>
                     
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="bg-gray-50 p-5 rounded-md border border-gray-200 shadow-sm hover:border-red-300 transition">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="text-sm font-mono font-bold text-gray-900">CVE-2026-27784</span>
-                                <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded">High</span>
+                    <div id="cve-grid-wrapper" class="overflow-y-auto" style="scrollbar-width: thin; scrollbar-color: #e5e7eb transparent;">
+                        <div id="cve-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-5 rounded-md border border-gray-200 shadow-sm hover:border-red-300 transition">
+                                <div class="flex justify-between items-start mb-2">
+                                    <span class="text-sm font-mono font-bold text-gray-900">CVE-2026-27784</span>
+                                    <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded">High</span>
+                                </div>
+                                <h4 class="font-semibold text-sm mb-1">Integer Overflow in nginx MP4 Module</h4>
+                                <p class="text-xs text-gray-600 mb-3">Identified an integer overflow in nginx's MP4 module on 32-bit systems, allowing for heap information disclosure.</p>
+                                <div class="flex gap-4">
+                                    <a href="/blog/nginx-mp4-overflow.html" class="text-xs font-bold text-red-600 hover:text-red-800">Write-up &rarr;</a>
+                                    <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-27784" class="text-xs font-bold text-red-600 hover:text-red-800">NVD &rarr;</a>
+                                </div>
                             </div>
-                            <h4 class="font-semibold text-sm mb-1">Integer Overflow in nginx MP4 Module</h4>
-                            <p class="text-xs text-gray-600 mb-3">Identified an integer overflow in nginx's MP4 module on 32-bit systems, allowing for heap information disclosure.</p>
-                            <div class="flex gap-4">
-                                <a href="/blog/nginx-mp4-overflow.html" class="text-xs font-bold text-red-600 hover:text-red-800">Write-up &rarr;</a>
-                                <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-27784" class="text-xs font-bold text-red-600 hover:text-red-800">NVD &rarr;</a>
-                            </div>
-                        </div>
 
-                        <div class="bg-gray-50 p-5 rounded-md border border-gray-200 shadow-sm hover:border-red-300 transition">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="text-sm font-mono font-bold text-gray-900">CVE-2026-29062</span>
-                                <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded">High</span>
-                            </div>
-                            <h4 class="font-semibold text-sm mb-1">Nesting Depth Bypass in jackson-core</h4>
-                            <p class="text-xs text-gray-600 mb-3">Discovered a bypass in Jackson's nesting depth constraints when using DataInput, leading to potential StackOverflow DOS.</p>
-                            <div class="flex gap-4">
-                                <a href="/blog/jackson-datainput-nesting-bypass.html" class="text-xs font-bold text-red-600 hover:text-red-800">Write-up &rarr;</a>
-                                <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-29062" class="text-xs font-bold text-red-600 hover:text-red-800">NVD &rarr;</a>
+                            <div class="bg-gray-50 p-5 rounded-md border border-gray-200 shadow-sm hover:border-red-300 transition">
+                                <div class="flex justify-between items-start mb-2">
+                                    <span class="text-sm font-mono font-bold text-gray-900">CVE-2026-29062</span>
+                                    <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded">High</span>
+                                </div>
+                                <h4 class="font-semibold text-sm mb-1">Nesting Depth Bypass in jackson-core</h4>
+                                <p class="text-xs text-gray-600 mb-3">Discovered a bypass in Jackson's nesting depth constraints when using DataInput, leading to potential StackOverflow DOS.</p>
+                                <div class="flex gap-4">
+                                    <a href="/blog/jackson-datainput-nesting-bypass.html" class="text-xs font-bold text-red-600 hover:text-red-800">Write-up &rarr;</a>
+                                    <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-29062" class="text-xs font-bold text-red-600 hover:text-red-800">NVD &rarr;</a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -93,11 +95,11 @@
 
                 <section>
                     <h2 class="text-2xl font-bold text-gray-900 mb-6">Latest Write-ups</h2>
-                    
-                    <div class="space-y-8">
+
+                    <div class="overflow-y-auto max-h-[460px] pr-2 space-y-8" style="scrollbar-width: thin; scrollbar-color: #e5e7eb transparent;">
                         <div class="border-l-2 border-red-600 pl-5">
                             <a href="/blog/nginx-mp4-overflow.html" class="group">
-                                <h3 class="font-bold text-gray-900 text-lg group-hover:text-red-600 transition">Deep Dive: Integer Overflow in nginx ngx_http_mp4_module</h3>
+                                <h3 class="font-bold text-gray-900 text-lg group-hover:text-red-600 transition">Deep Dive: Integer Overflow in nginx ngx_http_mp4_module causes Out of Bounds Read/Write</h3>
                             </a>
                             <p class="text-xs text-gray-500 mb-2 font-medium mt-1">March 2026</p>
                             <p class="text-sm text-gray-700 leading-relaxed">
@@ -107,19 +109,8 @@
                         </div>
 
                         <div class="border-l-2 border-red-600 pl-5">
-                            <a href="/blog/jackson-async-number-bypass.html" class="group">
-                                <h3 class="font-bold text-gray-900 text-lg group-hover:text-red-600 transition">Jackson-core: Number Length Constraint Bypass in Async Parsers</h3>
-                            </a>
-                            <p class="text-xs text-gray-500 mb-2 font-medium mt-1">February 2026</p>
-                            <p class="text-sm text-gray-700 leading-relaxed">
-                                The async JSON parser in jackson-core fails to enforce maxNumberLength constraints, leading to potential memory and CPU exhaustion.
-                            </p>
-                            <a href="/blog/jackson-async-number-bypass.html" class="inline-block mt-3 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
-                        </div>
-
-                        <div class="border-l-2 border-red-600 pl-5">
                             <a href="/blog/jackson-datainput-nesting-bypass.html" class="group">
-                                <h3 class="font-bold text-gray-900 text-lg group-hover:text-red-600 transition">Jackson-core: Nesting Depth Constraint Bypass in DataInput Parser</h3>
+                                <h3 class="font-bold text-gray-900 text-lg group-hover:text-red-600 transition">Jackson-core: Nesting Depth Bypass in DataInput Parser Leads to Unsafe Deserialization</h3>
                             </a>
                             <p class="text-xs text-gray-500 mb-2 font-medium mt-1">February 2026</p>
                             <p class="text-sm text-gray-700 leading-relaxed">
@@ -127,8 +118,20 @@
                             </p>
                             <a href="/blog/jackson-datainput-nesting-bypass.html" class="inline-block mt-3 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
                         </div>
+
+                        <div class="border-l-2 border-red-600 pl-5">
+                            <a href="/blog/jackson-async-number-bypass.html" class="group">
+                                <h3 class="font-bold text-gray-900 text-lg group-hover:text-red-600 transition">Jackson-core: Number Length Constraint Bypass in Async Parsers Leads to Denial of Service (DoS)</h3>
+                            </a>
+                            <p class="text-xs text-gray-500 mb-2 font-medium mt-1">January 26, 2026</p>
+                            <p class="text-sm text-gray-700 leading-relaxed">
+                                The async JSON parser in jackson-core fails to enforce maxNumberLength constraints, leading to potential memory and CPU exhaustion.
+                            </p>
+                            <a href="/blog/jackson-async-number-bypass.html" class="inline-block mt-3 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
+                        </div>
+
                     </div>
-                    
+
                     <div class="mt-6">
                         <a href="/blog/index.html" class="text-sm font-bold text-gray-900 hover:text-red-600 transition border-b-2 border-gray-200 hover:border-red-600 pb-1">View all posts &rarr;</a>
                     </div>
@@ -136,5 +139,24 @@
             </div>
         </div>
     </div>
+    <script>
+        (function () {
+            var wrapper = document.getElementById('cve-grid-wrapper');
+            var grid = document.getElementById('cve-grid');
+            function setHeight() {
+                var items = grid.children;
+                if (!items.length) return;
+                var cols = window.innerWidth >= 640 ? 2 : 1;
+                var lastIdx = Math.min(cols * 2 - 1, items.length - 1);
+                var lastItem = items[lastIdx];
+                var gridTop = grid.getBoundingClientRect().top;
+                var itemBottom = lastItem.getBoundingClientRect().bottom;
+                var gap = parseFloat(getComputedStyle(grid).rowGap) || 16;
+                wrapper.style.maxHeight = (itemBottom - gridTop + gap) + 'px';
+            }
+            setHeight();
+            window.addEventListener('resize', setHeight);
+        })();
+    </script>
 </body>
 </html>
