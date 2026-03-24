@@ -228,18 +228,13 @@
                     </div>
 
                     <p>The asymmetry is stark: the attacker pays 9 bytes of wire cost per frame while the server pays a full parse-and-verify cycle. At 100,000 frames, the attacker sends under 900 KB while the server performs 100,000 discrete operations.</p>
-
-                    <p class="font-semibold text-gray-900 mt-4">Fix Status:</p>
-                    <p>
-                        A fix commit (<code>c2ef97dce9</code>, "Limit the number of Continuation frames per HTTP2 Headers") exists on the branch <code>remotes/origin/limit_continuation_frame</code> but was <span class="font-bold text-red-600">never merged</span> to any release branch of Netty 4.1.x or 4.2. There are no release tags on the fix branch. The separately assigned CVE-2025-55163 (MadeYouReset) addresses a different HTTP/2 vulnerability — stream count bypass — and does not cover this CONTINUATION flood.
-                    </p>
                 </div>
             </section>
 
             <section>
                 <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Conclusion</h2>
                 <p class="text-base text-gray-700 leading-relaxed mb-6">
-                    This vulnerability is a textbook case of an incomplete defense: a byte-accumulation guard that assumes all frames carry bytes, leaving it trivially bypassed by a spec-compliant edge case. The absence of a frame count limit in <code>verifyContinuationFrame()</code> is the root cause, and the byte guard's blind spot compounds it. The same vulnerability class has already affected Apache httpd (CVE-2024-27316), Tomcat (CVE-2024-24549), nghttp2 (CVE-2024-28182), and Envoy (CVE-2024-30255). Administrators running Netty HTTP/2 servers should monitor for the release of a patched version incorporating the unmerged fix commit, or apply manual frame count limiting at the handler level in the interim.
+                    The absence of a frame count limit in <code>verifyContinuationFrame()</code> is the root cause, and the byte guard's blind spot compounds it. The same vulnerability class has already affected Apache httpd (CVE-2024-27316), Tomcat (CVE-2024-24549), nghttp2 (CVE-2024-28182), and Envoy (CVE-2024-30255). Administrators running Netty HTTP/2 servers should monitor for the release of a patched version incorporating the unmerged fix commit, or apply manual frame count limiting at the handler level in the interim.
                 </p>
             </section>
 
