@@ -48,11 +48,10 @@
                 <div class="space-y-4">
 
                     <div class="bg-gray-50 p-5 rounded-md border border-gray-200 hover:border-red-300 transition">
-                        <div class="flex justify-between items-start mb-1">
-                            <span class="text-sm font-mono font-bold text-gray-900">CVE-2026-33871</span>
-                            <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded">High 8.7</span>
+                        <div class="flex justify-between items-start gap-4 mb-1">
+                            <h4 class="font-semibold text-sm">CVE-2026-33871: Netty's Uncapped HTTP/2 CONTINUATION Frames Leads to Denial of Service (DoS)</h4>
+                            <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded flex-shrink-0">High 8.7</span>
                         </div>
-                        <h4 class="font-semibold text-sm mb-1">The Flood: Netty's Uncapped HTTP/2 CONTINUATION Frames Leads to Denial of Service (DoS)</h4>
                         <p class="text-xs text-gray-500 mb-3">Netty's HTTP/2 frame reader accepts unlimited CONTINUATION frames with no count limit — the only mitigation is fully bypassed by 0-byte frames, enabling CPU exhaustion with minimal attacker bandwidth.</p>
                         <div class="flex gap-4">
                             <a href="/blog/netty-continuation-flood.html" class="text-xs font-bold text-red-600 hover:text-red-800">Write-up &rarr;</a>
@@ -61,11 +60,10 @@
                     </div>
 
                     <div class="bg-gray-50 p-5 rounded-md border border-gray-200 hover:border-red-300 transition">
-                        <div class="flex justify-between items-start mb-1">
-                            <span class="text-sm font-mono font-bold text-gray-900">CVE-2026-27784</span>
-                            <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded">High 8.5</span>
+                        <div class="flex justify-between items-start gap-4 mb-1">
+                            <h4 class="font-semibold text-sm">CVE-2026-27784: Integer Overflow in nginx ngx_http_mp4_module causes Out of Bounds Read/Write</h4>
+                            <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded flex-shrink-0">High 8.5</span>
                         </div>
-                        <h4 class="font-semibold text-sm mb-1">Deep Dive: Integer Overflow in nginx ngx_http_mp4_module causes Out of Bounds Read/Write</h4>
                         <p class="text-xs text-gray-500 mb-3">An integer overflow in nginx's MP4 module on 32-bit systems silently bypasses bounds checks, exposing adjacent heap memory and enabling potential denial of service.</p>
                         <div class="flex gap-4">
                             <a href="/blog/nginx-mp4-overflow.html" class="text-xs font-bold text-red-600 hover:text-red-800">Write-up &rarr;</a>
@@ -74,11 +72,10 @@
                     </div>
 
                     <div class="bg-gray-50 p-5 rounded-md border border-gray-200 hover:border-red-300 transition">
-                        <div class="flex justify-between items-start mb-1">
-                            <span class="text-sm font-mono font-bold text-gray-900">CVE-2026-29062</span>
-                            <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded">High 8.7</span>
+                        <div class="flex justify-between items-start gap-4 mb-1">
+                            <h4 class="font-semibold text-sm">CVE-2026-29062: Nesting Depth Bypass in DataInput Parser Leads to Unsafe Deserialization in jackson-core</h4>
+                            <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded flex-shrink-0">High 8.7</span>
                         </div>
-                        <h4 class="font-semibold text-sm mb-1">Jackson-core: Nesting Depth Bypass in DataInput Parser Leads to Unsafe Deserialization</h4>
                         <p class="text-xs text-gray-500 mb-3">The DataInput parser bypasses the maxNestingDepth constraint entirely, allowing an attacker to craft deeply nested JSON that exhausts the JVM stack and causes an immediate denial of service.</p>
                         <div class="flex gap-4">
                             <a href="/blog/jackson-datainput-nesting-bypass.html" class="text-xs font-bold text-red-600 hover:text-red-800">Write-up &rarr;</a>
