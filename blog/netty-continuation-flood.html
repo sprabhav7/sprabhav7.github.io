@@ -61,7 +61,7 @@
             <section>
                 <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Summary</h2>
                 <p class="text-base text-gray-700 leading-relaxed max-w-4xl">
-                    A significant security flaw was identified in Netty's <code>DefaultHttp2FrameReader</code>, affecting applications that utilize its HTTP/2 stack. The vulnerability arises from the parser's willingness to accept an unbounded sequence of <code>CONTINUATION</code> frames within a single header block. While Netty implements a byte-level constraint via <code>maxHeaderListSizeGoAway</code>, this mitigation is bypassed by 0-byte frames, which are technically valid under RFC 9113. A remote, unauthenticated attacker can exploit this architectural oversight to exhaust CPU resources and monopolize server-side threads with negligible bandwidth overhead.
+                    A significant security flaw was identified and resolved in Netty's <code>DefaultHttp2FrameReader</code>. The vulnerability stemmed from the parser's willingness to accept an unbounded sequence of <code>CONTINUATION</code> frames within a single header block. While Netty implemented a byte-level constraint via <code>maxHeaderListSizeGoAway</code>, this mitigation was bypassed by 0-byte frames, which are technically valid under RFC 9113. Netty has since introduced a hard limit on the number of allowed <code>CONTINUATION</code> frames per header block, effectively mitigating this asymmetric resource exhaustion attack.
                 </p>
             </section>
 
@@ -69,9 +69,9 @@
                 <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Impact</h2>
                 <div class="space-y-8">
                     <ol class="list-decimal pl-5 space-y-4 text-gray-700 font-medium">
-                        <li><span class="text-gray-900 font-bold">Asymmetric CPU Exhaustion:</span> The server incurs a full parse-and-verify cycle for every frame, while the attacker only pays a 9-byte wire cost, leading to severe resource starvation.</li>
+                        <li><span class="text-gray-900 font-bold">Asymmetric CPU Exhaustion:</span> The server incurred a full parse-and-verify cycle for every frame, while the attacker only paid a 9-byte wire cost, leading to severe resource starvation.</li>
                         <li><span class="text-gray-900 font-bold">Protocol-Level Blocking:</span> The HTTP/2 specification requires that no other frames be processed on a connection while a header fragment sequence is pending, allowing a single stream to freeze the entire multiplexed connection.</li>
-                        <li><span class="text-gray-900 font-bold">Service Unavailability:</span> By targeting the I/O thread pool across multiple concurrent connections, an attacker can trigger a total Denial-of-Service (DoS) for all users.</li>
+                        <li><span class="text-gray-900 font-bold">Service Unavailability:</span> By targeting the I/O thread pool across multiple concurrent connections, an attacker could trigger a total Denial-of-Service (DoS) for all users.</li>
                     </ol>
                 </div>
             </section>
@@ -79,7 +79,7 @@
             <section>
                 <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Attack Prerequisites</h2>
                 <div class="bg-gray-50 p-5 rounded-md border border-gray-200 text-sm text-gray-700 space-y-2">
-                    <p>The vulnerability exists in the default configuration of Netty's HTTP/2 implementation. No specialized authentication, custom headers, or administrative misconfigurations are required for exploitation. The attack leverages 0-byte <code>CONTINUATION</code> frames, which are explicitly permitted under <span class="font-mono">RFC 9113 Section 6.10</span>, making them difficult to filter at the protocol layer without risking spec non-compliance.</p>
+                    <p>The vulnerability existed in the default configuration of Netty's HTTP/2 implementation prior to the fix. No specialized authentication, custom headers, or administrative misconfigurations were required for exploitation. The attack leveraged 0-byte <code>CONTINUATION</code> frames, which are explicitly permitted under <span class="font-mono">RFC 9113 Section 6.10</span>, making them difficult to filter at the protocol layer without risking spec non-compliance.</p>
                 </div>
             </section>
 
@@ -87,11 +87,11 @@
                 <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Description</h2>
                 <div class="space-y-6 text-gray-700 leading-relaxed">
                     <p>
-                        The root cause of this vulnerability is an architectural omission in the <code>verifyContinuationFrame()</code> method of Netty's <code>DefaultHttp2FrameReader</code>. In the HTTP/2 protocol, <code>CONTINUATION</code> frames are used to transport header fragments that exceed the maximum frame size. Netty's implementation validates stream association and state but fails to enforce any upper bound on the number of frames permitted in a single sequence.
+                        The root cause of this vulnerability was an architectural omission in the <code>verifyContinuationFrame()</code> method of Netty's <code>DefaultHttp2FrameReader</code>. In the HTTP/2 protocol, <code>CONTINUATION</code> frames are used to transport header fragments that exceed the maximum frame size. Previously, Netty's implementation validated stream association and state but failed to enforce an upper bound on the number of frames permitted in a single sequence.
                     </p>
 
                     <div class="code-block">
-                        <span class="comment">// DefaultHttp2FrameReader.java</span><br>
+                        <span class="comment">// DefaultHttp2FrameReader.java (Fixed Version)</span><br>
                         <span class="keyword">private void</span> verifyContinuationFrame() <span class="keyword">throws</span> Http2Exception {<br>
                         &nbsp;&nbsp;&nbsp;&nbsp;verifyAssociatedWithAStream();<br>
                         &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">if</span> (headersContinuation == <span class="keyword">null</span>) {<br>
@@ -100,17 +100,17 @@
                         &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">if</span> (streamId != headersContinuation.getStreamId()) {<br>
                         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">throw</span> connectionError(PROTOCOL_ERROR, <span class="highlight">"..."</span>);<br>
                         &nbsp;&nbsp;&nbsp;&nbsp;}<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// BUG: Missing frame count validation</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// FIX: Now enforces max frame count limit per sequence</span><br>
                         }
                     </div>
 
                     <p>
-                        To prevent memory exhaustion, Netty tracks the total byte size of accumulated headers using <code>maxHeaderListSizeGoAway</code>. However, this defense mechanism assumes that each frame contributes a measurable payload. By transmitting 0-byte <code>CONTINUATION</code> frames, an attacker ensures the byte-count remains static while the server continues to process an infinite number of discrete frame objects.
+                        To prevent memory exhaustion, Netty tracks the total byte size of accumulated headers using <code>maxHeaderListSizeGoAway</code>. However, this defense mechanism assumed that each frame contributed a measurable payload. By transmitting 0-byte <code>CONTINUATION</code> frames, an attacker ensured the byte-count remained static while the server continued to process an infinite number of discrete frame objects.
                     </p>
 
                     <!-- Bypass Logic Diagram -->
                     <div class="bg-gray-50 border border-gray-200 rounded-md p-5 my-4">
-                        <p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">Mitigation Bypass: 0-Byte Payload Evasion</p>
+                        <p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">The Flaw: 0-Byte Payload Evasion</p>
                         <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" class="w-full max-w-2xl mx-auto block font-mono text-xs">
                             <defs>
                                 <marker id="ra" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
@@ -150,12 +150,12 @@
                     </div>
 
                     <p>
-                        This "flood" of frames triggers an extreme imbalance in resource consumption. The server must perform a full state-machine transition and verification for every incoming fragment, effectively pinning a worker thread until the connection is closed or the server crashes.
+                        This "flood" of frames triggered an extreme imbalance in resource consumption. The server was forced to perform a full state-machine transition and verification for every incoming fragment, effectively pinning a worker thread until the connection was closed or the server crashed.
                     </p>
 
                     <!-- Attack Flow Diagram -->
                     <div class="bg-gray-50 border border-gray-200 rounded-md p-5 my-4">
-                        <p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">Vulnerability Lifecycle: Connection Monopolization</p>
+                        <p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">The Attack: Connection Monopolization</p>
                         <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" class="w-full max-w-2xl mx-auto block font-mono text-xs">
                             <defs>
                                 <marker id="ba" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
@@ -202,7 +202,7 @@
             <section>
                 <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Conclusion</h2>
                 <p class="text-base text-gray-700 leading-relaxed mb-6">
-                    This vulnerability underscores a critical class of HTTP/2 implementation flaws where specification compliance (accepting valid empty frames) conflicts with resource management. Netty users should prioritize upgrading to a patched release that enforces hard limits on frame counts within header sequences. Until an upgrade is feasible, implementing request-level timeouts and monitoring for excessive CPU usage on I/O threads are recommended as interim mitigation strategies.
+                    This vulnerability underscores a critical class of HTTP/2 implementation flaws where specification compliance (accepting valid empty frames) conflicts with resource management. The Netty maintainers have since resolved this by introducing a configurable limit on the number of <code>CONTINUATION</code> frames allowed per header block. All users are strongly encouraged to upgrade to Netty 4.1.132.Final, 4.2.11.Final or later to address this issue.
                 </p>
             </section>
 
