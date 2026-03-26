@@ -61,7 +61,7 @@
             <section>
                 <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Summary</h2>
                 <p class="text-base text-gray-700 leading-relaxed max-w-4xl">
-                    A significant security flaw was identified and resolved in Netty's <code>DefaultHttp2FrameReader</code>. The vulnerability stemmed from the parser's willingness to accept an unbounded sequence of <code>CONTINUATION</code> frames within a single header block. While Netty implemented a byte-level constraint via <code>maxHeaderListSizeGoAway</code>, this mitigation was bypassed by 0-byte frames, which are technically valid under RFC 9113. Netty has since introduced a hard limit on the number of allowed <code>CONTINUATION</code> frames per header block, effectively mitigating this asymmetric resource exhaustion attack.
+                    A Denial-of-Service vulnerability was discovered in Netty's <code>DefaultHttp2FrameReader</code>. The reader accepts an unbounded number of HTTP/2 CONTINUATION frames per header block, with no frame count limit enforced. The existing mitigations which included a byte-level cap via <code>maxHeaderListSizeGoAway</code> could be bypassed by sending 0-byte CONTINUATION frames, which are valid per RFC 9113. An unauthenticated remote user can exploit this to monopolize server threads with minimal bandwidth, causing CPU exhaustion and connection-level Denial-of-Service against any default-configured Netty HTTP/2 server.
                 </p>
             </section>
 
@@ -69,9 +69,9 @@
                 <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Impact</h2>
                 <div class="space-y-8">
                     <ol class="list-decimal pl-5 space-y-4 text-gray-700 font-medium">
-                        <li><span class="text-gray-900 font-bold">Asymmetric CPU Exhaustion:</span> The server incurred a full parse-and-verify cycle for every frame, while the attacker only paid a 9-byte wire cost, leading to severe resource starvation.</li>
-                        <li><span class="text-gray-900 font-bold">Protocol-Level Blocking:</span> The HTTP/2 specification requires that no other frames be processed on a connection while a header fragment sequence is pending, allowing a single stream to freeze the entire multiplexed connection.</li>
-                        <li><span class="text-gray-900 font-bold">Service Unavailability:</span> By targeting the I/O thread pool across multiple concurrent connections, an attacker could trigger a total Denial-of-Service (DoS) for all users.</li>
+                        <li><span class="text-gray-900 font-bold">CPU Exhaustion:</span> Each CONTINUATION frame triggers full parse-and-verify logic server-side at ~389ns per frame, creating a significant CPU cost asymmetry relative to the 9-byte attacker wire cost.</li>
+                        <li><span class="text-gray-900 font-bold">Connection Monopolization:</span> The HTTP/2 protocol requires all other frames on a connection to be blocked while a CONTINUATION sequence is pending. A single open CONTINUATION chain freezes the entire connection.</li>
+                        <li><span class="text-gray-900 font-bold">Thread Pool Starvation:</span> Attacking multiple connections simultaneously exhausts the server's I/O thread pool, causing complete service unavailability.</li>
                     </ol>
                 </div>
             </section>
@@ -79,7 +79,8 @@
             <section>
                 <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Attack Prerequisites</h2>
                 <div class="bg-gray-50 p-5 rounded-md border border-gray-200 text-sm text-gray-700 space-y-2">
-                    <p>The vulnerability existed in the default configuration of Netty's HTTP/2 implementation prior to the fix. No specialized authentication, custom headers, or administrative misconfigurations were required for exploitation. The attack leveraged 0-byte <code>CONTINUATION</code> frames, which are explicitly permitted under <span class="font-mono">RFC 9113 Section 6.10</span>, making them difficult to filter at the protocol layer without risking spec non-compliance.</p>
+                    <p><span class="font-semibold text-gray-900">None.</span> This vulnerability affects the default Netty HTTP/2 server configuration. Any user capable of opening an HTTP/2 connection over TLS (h2) or cleartext (h2c) can trigger the issue.</p>
+                    <p class="mt-2">The attack leverages 0-byte CONTINUATION frames, which are explicitly valid under <span class="font-mono">RFC 9113 Section 6.10</span>. The server cannot reject them at the protocol layer without violating spec compliance.</p>
                 </div>
             </section>
 
@@ -87,11 +88,11 @@
                 <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Description</h2>
                 <div class="space-y-6 text-gray-700 leading-relaxed">
                     <p>
-                        The root cause of this vulnerability was an architectural omission in the <code>verifyContinuationFrame()</code> method of Netty's <code>DefaultHttp2FrameReader</code>. In the HTTP/2 protocol, <code>CONTINUATION</code> frames are used to transport header fragments that exceed the maximum frame size. Previously, Netty's implementation validated stream association and state but failed to enforce an upper bound on the number of frames permitted in a single sequence.
+                        In HTTP/2, a HEADERS frame may be followed by any number of CONTINUATION frames to carry the remainder of a compressed header block. Netty's <code>DefaultHttp2FrameReader</code> enforces no limit on how many such frames it will accept before the sequence is closed with an <code>END_HEADERS</code> flag. The verification method responsible for validating CONTINUATION frames, <code>verifyContinuationFrame()</code>, checks only stream association and state, but never the frame count.
                     </p>
 
                     <div class="code-block">
-                        <span class="comment">// DefaultHttp2FrameReader.java (Fixed Version)</span><br>
+                        <span class="comment">// DefaultHttp2FrameReader.java, lines 381–393</span><br>
                         <span class="keyword">private void</span> verifyContinuationFrame() <span class="keyword">throws</span> Http2Exception {<br>
                         &nbsp;&nbsp;&nbsp;&nbsp;verifyAssociatedWithAStream();<br>
                         &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">if</span> (headersContinuation == <span class="keyword">null</span>) {<br>
@@ -100,17 +101,17 @@
                         &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">if</span> (streamId != headersContinuation.getStreamId()) {<br>
                         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">throw</span> connectionError(PROTOCOL_ERROR, <span class="highlight">"..."</span>);<br>
                         &nbsp;&nbsp;&nbsp;&nbsp;}<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// FIX: Now enforces max frame count limit per sequence</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// NO frame count limit — frames accepted indefinitely</span><br>
                         }
                     </div>
 
                     <p>
-                        To prevent memory exhaustion, Netty tracks the total byte size of accumulated headers using <code>maxHeaderListSizeGoAway</code>. However, this defense mechanism assumed that each frame contributed a measurable payload. By transmitting 0-byte <code>CONTINUATION</code> frames, an attacker ensured the byte-count remained static while the server continued to process an infinite number of discrete frame objects.
+                        Netty does implement an additional safeguard: <code>maxHeaderListSizeGoAway</code> which tracks accumulated header bytes and issues a GOAWAY once the threshold is exceeded. However, this protection assumes each frame contributes a nonzero byte payload. Sending 0-byte CONTINUATION frames renders it inert.
                     </p>
 
                     <!-- Bypass Logic Diagram -->
                     <div class="bg-gray-50 border border-gray-200 rounded-md p-5 my-4">
-                        <p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">The Flaw: 0-Byte Payload Evasion</p>
+                        <p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">Byte Limit Bypass: Why 0-Byte Frames Evade maxHeaderListSizeGoAway</p>
                         <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" class="w-full max-w-2xl mx-auto block font-mono text-xs">
                             <defs>
                                 <marker id="ra" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
@@ -122,7 +123,7 @@
                             </defs>
 
                             <!-- Header row -->
-                            <text x="10" y="20" fill="#374151" font-size="12" font-family="monospace" font-weight="bold">HeadersBlockBuilder.addFragment()</text>
+                            <text x="10" y="20" fill="#374151" font-size="12" font-family="monospace" font-weight="bold">HeadersBlockBuilder.addFragment() — line 710</text>
 
                             <!-- The check expression -->
                             <rect x="10" y="32" width="680" height="36" rx="3" fill="#f3f4f6" stroke="#d1d5db" stroke-width="1.5"/>
@@ -132,30 +133,39 @@
                             <line x1="10" y1="82" x2="690" y2="82" stroke="#e5e7eb" stroke-width="1"/>
 
                             <!-- Left: 1-byte path -->
-                            <text x="30" y="102" fill="#16a34a" font-size="11" font-family="monospace" font-weight="bold">Standard Frame (len > 0)</text>
-                            <text x="30" y="120" fill="#374151" font-size="11" font-family="monospace">10240 - 1 &lt; 1?</text>
-                            <text x="30" y="138" fill="#374151" font-size="11" font-family="monospace">10239 &lt; 1 → FALSE</text>
-                            <text x="30" y="158" fill="#374151" font-size="11" font-family="monospace">…limit eventually hit</text>
+                            <text x="30" y="102" fill="#16a34a" font-size="11" font-family="monospace" font-weight="bold">1-byte CONTINUATION (len = 1)</text>
+                            <text x="30" y="120" fill="#374151" font-size="11" font-family="monospace">10240 - 1 &lt; readableBytes(1)?</text>
+                            <text x="30" y="138" fill="#374151" font-size="11" font-family="monospace">10239 &lt; 1 → FALSE (initially)</text>
+                            <text x="30" y="158" fill="#374151" font-size="11" font-family="monospace">…triggers at frame ~10240</text>
                             <rect x="10" y="168" width="290" height="24" rx="3" fill="#16a34a"/>
-                            <text x="155" y="184" text-anchor="middle" fill="white" font-size="11" font-family="monospace" font-weight="bold">✓ GOAWAY sent</text>
+                            <text x="155" y="184" text-anchor="middle" fill="white" font-size="11" font-family="monospace" font-weight="bold">✓ GOAWAY sent — limit enforced</text>
 
                             <!-- Right: 0-byte path -->
-                            <text x="380" y="102" fill="#dc2626" font-size="11" font-family="monospace" font-weight="bold">Attack Frame (len = 0)</text>
-                            <text x="380" y="120" fill="#374151" font-size="11" font-family="monospace">10240 - 0 &lt; 0?</text>
+                            <text x="380" y="102" fill="#dc2626" font-size="11" font-family="monospace" font-weight="bold">0-byte CONTINUATION (len = 0)</text>
+                            <text x="380" y="120" fill="#374151" font-size="11" font-family="monospace">10240 - 0 &lt; readableBytes(0)?</text>
                             <text x="380" y="138" fill="#374151" font-size="11" font-family="monospace">10240 &lt; 0 → FALSE forever</text>
-                            <text x="380" y="158" fill="#dc2626" font-size="11" font-family="monospace">…no accumulation</text>
+                            <text x="380" y="158" fill="#dc2626" font-size="11" font-family="monospace">…never accumulates → never fires</text>
                             <rect x="360" y="168" width="300" height="24" rx="3" fill="#dc2626"/>
-                            <text x="510" y="184" text-anchor="middle" fill="white" font-size="11" font-family="monospace" font-weight="bold">❌ Bypass: Unlimited frames accepted</text>
+                            <text x="510" y="184" text-anchor="middle" fill="white" font-size="11" font-family="monospace" font-weight="bold">❌ No GOAWAY — frames accepted forever</text>
                         </svg>
                     </div>
 
+                    <div class="code-block">
+                        <span class="comment">// HeadersBlockBuilder.addFragment() — lines 710–711</span><br>
+                        <span class="comment">// When len = 0, this condition is NEVER true regardless of frame count</span><br>
+                        <span class="keyword">if</span> (headersDecoder.configuration().<span class="highlight">maxHeaderListSizeGoAway()</span> - <span class="highlight">len</span> &lt;<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;headerBlock.readableBytes()) {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;headerSizeExceeded(); <span class="comment">// 10240 - 0 &lt; 0 → always FALSE</span><br>
+                        }
+                    </div>
+
                     <p>
-                        This "flood" of frames triggered an extreme imbalance in resource consumption. The server was forced to perform a full state-machine transition and verification for every incoming fragment, effectively pinning a worker thread until the connection was closed or the server crashed.
+                        The result is a two-layer failure. The frame count check is absent entirely from <code>verifyContinuationFrame()</code>, and the fallback, i.e. the byte accumulator can be bypassed by sending frames with no payload.
                     </p>
 
                     <!-- Attack Flow Diagram -->
                     <div class="bg-gray-50 border border-gray-200 rounded-md p-5 my-4">
-                        <p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">The Attack: Connection Monopolization</p>
+                        <p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">Attack Flow: Connection Monopolization via 0-Byte CONTINUATION</p>
                         <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" class="w-full max-w-2xl mx-auto block font-mono text-xs">
                             <defs>
                                 <marker id="ba" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
@@ -176,24 +186,26 @@
 
                             <!-- Step 1: HEADERS -->
                             <line x1="140" y1="70" x2="530" y2="70" stroke="#374151" stroke-width="1.5" marker-end="url(#ba)"/>
-                            <text x="335" y="64" text-anchor="middle" fill="#374151" font-size="11" font-family="monospace">Initial HEADERS (no END_HEADERS flag)</text>
+                            <text x="335" y="64" text-anchor="middle" fill="#374151" font-size="11" font-family="monospace">HEADERS frame (1 byte, no END_HEADERS)</text>
+                            <text x="20" y="84" fill="#374151" font-size="10" font-family="monospace">step 1</text>
 
                             <!-- Step 2: CONTINUATION x N -->
                             <line x1="140" y1="108" x2="530" y2="108" stroke="#dc2626" stroke-width="1.5" marker-end="url(#da2)"/>
-                            <text x="335" y="102" text-anchor="middle" fill="#dc2626" font-size="11" font-family="monospace">0-byte CONTINUATION Flood (N → ∞)</text>
+                            <text x="335" y="102" text-anchor="middle" fill="#dc2626" font-size="11" font-family="monospace">CONTINUATION × N (0 bytes each, 9 bytes wire)</text>
+                            <text x="20" y="122" fill="#dc2626" font-size="10" font-family="monospace">step 2</text>
 
                             <!-- Step 3: Server processing -->
                             <rect x="530" y="128" width="150" height="42" rx="3" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
-                            <text x="605" y="145" text-anchor="middle" fill="#991b1b" font-size="10" font-family="monospace">Processing Cycle</text>
-                            <text x="605" y="161" text-anchor="middle" fill="#991b1b" font-size="10" font-family="monospace">(CPU Consumption)</text>
+                            <text x="605" y="145" text-anchor="middle" fill="#991b1b" font-size="10" font-family="monospace">verifyContinuationFrame()</text>
+                            <text x="605" y="161" text-anchor="middle" fill="#991b1b" font-size="10" font-family="monospace">per frame — no limit</text>
 
                             <!-- Step 4: blocked frames -->
                             <rect x="200" y="148" width="270" height="32" rx="3" fill="#fef9c3" stroke="#fde047" stroke-width="1.5"/>
-                            <text x="335" y="163" text-anchor="middle" fill="#92400e" font-size="10" font-family="monospace">All other streams BLOCKED</text>
+                            <text x="335" y="163" text-anchor="middle" fill="#92400e" font-size="10" font-family="monospace">all other frames BLOCKED (HTTP/2 protocol)</text>
 
                             <!-- Outcome -->
                             <rect x="10" y="195" width="680" height="22" rx="3" fill="#dc2626"/>
-                            <text x="350" y="210" text-anchor="middle" fill="white" font-size="11" font-family="monospace" font-weight="bold">Result: Connection Monopolization and Thread Starvation</text>
+                            <text x="350" y="210" text-anchor="middle" fill="white" font-size="11" font-family="monospace" font-weight="bold">Connection monopolized and 50,000+ frames accepted with no error</text>
                         </svg>
                     </div>
                 </div>
