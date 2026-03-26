@@ -60,7 +60,7 @@
             <section>
                 <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Summary</h2>
                 <p class="text-base text-gray-700 leading-relaxed max-w-4xl">
-                    A critical integer overflow vulnerability was discovered in the <code>ngx_http_mp4_module</code>, specifically affecting nginx deployments on 32-bit architectures. The flaw is triggered when the module parses specially crafted MP4 files containing large entry counts in atom tables. Due to improper integer promotion during a multiplication operation, a security bounds check is silently bypassed. This allows the worker process to treat out-of-bounds heap memory as valid atom data, leading to sensitive information disclosure or a process crash.
+                    A critical integer overflow vulnerability was discovered in the <code>ngx_http_mp4_module</code>, specifically affecting nginx deployments on 32-bit architectures. The flaw is triggered when the module parses specially crafted MP4 files containing large entry counts in atom tables. Due to improper integer promotion during a multiplication operation, a security bounds check is silently bypassed. This allows the worker process to treat out-of-bounds heap memory as valid atom data, leading to memory corruption, sensitive information disclosure or a process crash.
                 </p>
             </section>
 
@@ -68,9 +68,8 @@
                 <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Impact</h2>
                 <div class="space-y-8">
                     <ol class="list-decimal pl-5 space-y-4 text-gray-700 font-medium">
-                        <li><span class="text-gray-900 font-bold">Bounds Check Bypass:</span> The core security guard is neutralized, allowing execution to proceed with corrupted length values.</li>
-                        <li><span class="text-gray-900 font-bold">Heap Memory Disclosure:</span> An attacker can read adjacent memory chunks, potentially leaking credentials or session data from other users.</li>
-                        <li><span class="text-gray-900 font-bold">Worker Termination:</span> If the read reaches unmapped memory segments, the nginx worker process will segmentation fault, causing a Denial of Service.</li>
+                        <li><span class="text-gray-900 font-bold">Heap Memory Disclosure:</span> An attacker can write to/read adjacent memory chunks, causing unauthorized access of process memory.</li>
+                        <li><span class="text-gray-900 font-bold">Worker Termination:</span> If the read reaches unmapped memory segments, a segmentation fault will kill the nginx worker process, causing a persistent Denial of Service.</li>
                     </ol>
                 </div>
             </section>
@@ -99,7 +98,7 @@
                     </div>
 
                     <p>
-                        On 32-bit systems, <code>sizeof(size_t)</code> is 4. When <code>entries</code> is <code>0x40000001</code>, the multiplication <code>0x40000001 * 4</code> equals <code>0x100000004</code>. In a 32-bit register, the 33rd bit is lost, leaving only <code>0x00000004</code>. This tiny value is then promoted to 64-bit for the addition, but the overflow has already occurred.
+                        On 32-bit systems, <code>sizeof(size_t)</code> is 4. When <code>entries</code> is <code>0x40000001</code>, the multiplication <code>0x40000001 * 4</code> equals <code>0x100000004</code>. In a 32-bit register, the 33rd bit is lost, leaving only <code>0x00000004</code>. This value is then promoted to 64-bit for the addition, but the overflow has already occurred.
                     </p>
 
                     <!-- Integer Overflow Diagram -->
