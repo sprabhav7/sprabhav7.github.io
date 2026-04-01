@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CVE-2026-34979: Heap-based Buffer Overflow in CUPS Scheduler Leads to Denial of Service (DoS) | Research Blog</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .code-block { background: #f9fafb; color: #111827; padding: 1.5rem; border-radius: 0.375rem; border: 1px solid #e5e7eb; font-family: ui-monospace, monospace; font-size: 0.875rem; line-height: 1.7; overflow-x: auto; margin: 1.5rem 0; }
+        .highlight { color: #dc2626; font-weight: 700; }
+        .comment { color: #6b7280; font-style: italic; }
+        .keyword { color: #b91c1c; font-weight: 800; }
+    </style>
+</head>
+<body class="bg-white text-gray-900 antialiased selection:bg-red-100 selection:text-red-900">
+    <div class="max-w-5xl mx-auto py-16 px-6 sm:px-12">
+        
+        <header class="mb-16 border-b border-gray-200 pb-10">
+            <a href="/blog/index.html" class="text-sm font-bold text-gray-500 hover:text-red-600 transition mb-6 inline-block tracking-tight">&larr; Back to Research Index</a>
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">CVE-2026-34979: Heap-based Buffer Overflow in CUPS Scheduler Leads to Denial of Service (DoS)</h1>
+            <div class="flex items-center gap-4 text-xs font-bold text-red-600 uppercase tracking-widest">
+                <span>Vulnerability Research</span>
+                <span class="text-gray-300">|</span>
+                <span class="text-gray-500">April 1, 2026</span>
+            </div>
+        </header>
+
+        <main class="space-y-20">
+
+            <section>
+                <div class="bg-gray-50 p-6 rounded-md border border-gray-200 space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVSS 4.0 Score</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">6.9 (Medium)</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CWE Identification</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">CWE-122</span>
+                        </div>
+                    </div>
+                    <div class="pt-4 border-t border-gray-200">
+                        <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVSS Vector String</span>
+                        <code class="text-xs font-mono text-gray-600 break-all block leading-normal">CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N</code>
+                    </div>
+                    <div class="pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVE</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">CVE-2026-34979</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">Affected Versions</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">CUPS <= 2.4.16</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Summary</h2>
+                <p class="text-base text-gray-700 leading-relaxed max-w-4xl">
+                    The CUPS scheduler (<code>cupsd</code>) was vulnerable to a heap-based buffer overflow corrupting adjacent memory blocks. The flaw resides in how the scheduler calculates the required memory for job attributes versus how it actually serializes them. Specifically, the <code>ipp_length()</code> function fails to account for URI attributes like <code>job-uuid</code>, leading to an undersized allocation in <code>get_options()</code>. An unauthenticated remote attacker can exploit this by sending a crafted IPP request with an overly long <code>job-uuid</code>, resulting in memory corruption, crashing of the scheduler process, creating a Denial of Service (DoS).
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Impact</h2>
+                <div class="space-y-8">
+                    <ol class="list-decimal pl-5 space-y-4 text-gray-700 font-medium">
+                        <li><span class="text-gray-900 font-bold">Denial of Service (DoS):</span> The vulnerability is trivial to trigger, allowing any network-adjacent user to crash the printing service.</li>
+                        <li><span class="text-gray-900 font-bold">Heap Corruption:</span> Attacker-controlled data is written past the buffer boundaries, resulting in memory instability and process termination.</li>
+                        <li><span class="text-gray-900 font-bold">Service Disruption:</span> A single malicious payload can disable the printing system for all users until the service is restarted.</li>
+                    </ol>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Description</h2>
+                <div class="space-y-6 text-gray-700 leading-relaxed">
+                    <p>
+                        The vulnerability stems from a logical discrepancy between the size calculation and the actual data copy in <code>scheduler/job.c</code>.
+                    </p>
+
+                    <h3 class="text-lg font-bold text-gray-900">1. Incorrect Size Calculation</h3>
+                    <p>
+                        The <code>ipp_length()</code> function iterates through attributes to determine the buffer size. It explicitly skips <code>IPP_TAG_URI</code> types, which includes the <code>job-uuid</code> attribute.
+                    </p>
+
+                    <div class="code-block">
+                        <span class="comment">// scheduler/job.c</span><br>
+                        <span class="keyword">for</span> (attr = ipp->attrs; attr != NULL; attr = attr->next)<br>
+                        {<br>
+                        &nbsp;&nbsp;<span class="keyword">if</span> (attr->value_tag == IPP_TAG_NOVALUE ||<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="highlight">attr->value_tag == IPP_TAG_URI</span> || <span class="comment">// Skipped!</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;attr->value_tag == IPP_TAG_URISCHEME)<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">continue</span>;<br>
+                        &nbsp;&nbsp;...<br>
+                        }
+                    </div>
+
+                    <h3 class="text-lg font-bold text-gray-900">2. Undersized Allocation & Unsafe Copy</h3>
+                    <p>
+                        In <code>get_options()</code>, the buffer is allocated based on this incorrect length. However, the serialization loop makes an exception for <code>job-uuid</code> and <code>job-authorization-uri</code>, copying them into the buffer without any bounds checking.
+                    </p>
+
+                    <div class="code-block">
+                        <span class="comment">// scheduler/job.c - get_options()</span><br>
+                        <span class="keyword">case</span> IPP_TAG_URI:<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">for</span> (valptr = attr->values[i].string.text; *valptr;)<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;{<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">if</span> (strchr(<span class="highlight">" \t\n\\'\""</span>, *valptr))<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*optptr++ = <span class="highlight">'\\'</span>; <span class="comment">// Overflow!</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*optptr++ = *valptr++; <span class="comment">// Overflow!</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;*optptr = <span class="highlight">'\0'</span>;<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">break</span>;
+                    </div>
+
+                    <p>
+                        Since <code>job-uuid</code> can be up to 32,767 bytes per the IPP protocol, and <code>cupsd</code> does not validate its length before processing, an attacker has precise control over the overflow size and content, directly leading to heap corruption.
+                    </p>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Conclusion</h2>
+                <p class="text-base text-gray-700 leading-relaxed mb-6">
+                    This vulnerability highlights the critical importance of size-calculation logic and data-copy logic in synchronization. In the case of CUPS, a single missing tag check in a utility function created an attack vector for out-of-bounds write in the scheduler's heap memory. Users should ensure that CUPS services are not exposed to untrusted networks and as there is no patch from the OpenPrinting project at the time of this blogpost.
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">References</h2>
+                <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700 font-medium">
+                    <li>
+                        <a href="https://github.com/OpenPrinting/cups/security/advisories/GHSA-6qxf-7jx6-86fh" class="text-red-600 hover:underline">GitHub Advisory: GHSA-6qxf-7jx6-86fh</a>
+                    </li>
+                    <li>
+                        <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-34979" class="text-red-600 hover:underline">NVD Record: CVE-2026-34979</a>
+                    </li>
+                    <li>
+                        <a href="https://www.cve.org/CVERecord?id=CVE-2026-34979" class="text-red-600 hover:underline">CVE.org Record: CVE-2026-34979</a>
+                    </li>
+                </ul>
+            </section>
+
+            <section class="mt-12">
+                <p class="text-sm text-gray-600 italic">
+                    Special thanks to the OpenPrinting maintainers for their diligence in managing this security disclosure.
+                </p>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
