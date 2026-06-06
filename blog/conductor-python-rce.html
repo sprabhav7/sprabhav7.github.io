@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CVE-2026-38964: Unsandboxed GraalVM Python Context in Conductor-OSS Leads to Remote Code Execution (RCE) | Research Blog</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .code-block { background: #f9fafb; color: #111827; padding: 1.5rem; border-radius: 0.375rem; border: 1px solid #e5e7eb; font-family: ui-monospace, monospace; font-size: 0.875rem; line-height: 1.7; overflow-x: auto; margin: 1.5rem 0; }
+        .highlight { color: #dc2626; font-weight: 700; }
+        .comment { color: #6b7280; font-style: italic; }
+        .keyword { color: #b91c1c; font-weight: 800; }
+    </style>
+</head>
+<body class="bg-white text-gray-900 antialiased selection:bg-red-100 selection:text-red-900">
+    <div class="max-w-5xl mx-auto py-16 px-6 sm:px-12">
+        
+        <header class="mb-16 border-b border-gray-200 pb-10">
+            <a href="/blog/index.html" class="text-sm font-bold text-gray-500 hover:text-red-600 transition mb-6 inline-block tracking-tight">&larr; Back to Research Index</a>
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">CVE-2026-38964: Unsandboxed GraalVM Python Context in Conductor-OSS Leads to Remote Code Execution (RCE)</h1>
+            <div class="flex items-center gap-4 text-xs font-bold text-red-600 uppercase tracking-widest">
+                <span>Vulnerability Research</span>
+                <span class="text-gray-300">|</span>
+                <span class="text-gray-500">June 5, 2026</span>
+            </div>
+        </header>
+
+        <main class="space-y-20">
+
+            <section>
+                <div class="bg-gray-50 p-6 rounded-md border border-gray-200 space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVSS 4.0 Score</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">9.3 (Critical)</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CWE Identification</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">CWE-94</span>
+                        </div>
+                    </div>
+                    <div class="pt-4 border-t border-gray-200">
+                        <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVSS Vector String</span>
+                        <code class="text-xs font-mono text-gray-600 break-all block leading-normal">CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N</code>
+                    </div>
+                    <div class="pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVE</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">CVE-2026-38964</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">Affected Versions</span>
+                            <span class="text-xs font-mono font-bold text-gray-900">Conductor-OSS (All Versions)</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Summary</h2>
+                <p class="text-base text-gray-700 leading-relaxed max-w-4xl">
+                    I identified a critical security flaw in the <code>PythonEvaluator</code> component of Conductor-OSS, an open-source orchestration engine. This vulnerability allows any unauthenticated remote attacker to execute arbitrary OS commands on the server by leveraging an unsandboxed GraalVM Python context. Research revealed that a combination of unconditional evaluator enablement, a lack of API authentication, and over-privileged execution contexts makes stock deployments vulnerable out-of-the-box.
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Impact</h2>
+                <div class="space-y-8">
+                    <ol class="list-decimal pl-5 space-y-4 text-gray-700 font-medium">
+                        <li><span class="text-gray-900 font-bold">Unauthenticated RCE:</span> Any network-reachable client can trigger code execution without valid credentials or tokens.</li>
+                        <li><span class="text-gray-900 font-bold">Full System Compromise:</span> Payloads execute with the privileges of the Conductor-OSS process, enabling arbitrary file read/write and process execution.</li>
+                        <li><span class="text-gray-900 font-bold">Internal Network Pivoting:</span> A compromised server can be used as a beachhead to attack internal infrastructure that is otherwise shielded from the internet.</li>
+                    </ol>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Description</h2>
+                <div class="space-y-6 text-gray-700 leading-relaxed">
+                    <p>
+                        Analysis shows the vulnerability arises from three intersecting architectural decisions in the Conductor-OSS framework.
+                    </p>
+
+                    <h3 class="text-lg font-bold text-gray-900">1. Unsandboxed GraalVM Context</h3>
+                    <p>
+                        I discovered that in <code>PythonEvaluator.java</code>, the GraalVM <code>Context</code> is initialized with the <code>allowAllAccess(true)</code> flag. This "super-permission" explicitly disables all security sandboxing, granting the script host-level access to the filesystem, network, and system environment.
+                    </p>
+
+                    <div class="code-block">
+                        <span class="comment">// core/.../evaluators/PythonEvaluator.java</span><br>
+                        <span class="keyword">try</span> (Context context = Context.newBuilder(<span class="highlight">"python"</span>)<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="highlight">.allowAllAccess(true)</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;.build()) {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;...<br>
+                        }
+                    </div>
+
+                    <h3 class="text-lg font-bold text-gray-900">2. Direct Execution of User Expressions</h3>
+                    <p>
+                        The <code>INLINE</code> system task facilitates the direct evaluation of logic provided in the workflow definition. When a task specifies <code>evaluatorType: "python"</code>, the provided <code>expression</code> is wrapped in a Python function and executed. I found no validation or filtering performed on the expression string before it reaches the evaluator.
+                    </p>
+
+                    <h3 class="text-lg font-bold text-gray-900">3. Default Unauthenticated REST API</h3>
+                    <p>
+                        Finally, I noted that Conductor-OSS does not implement authentication for its REST controllers by default. The <code>MetadataResource</code> and <code>WorkflowResource</code> endpoints are exposed, enabling a simple two-step exploitation chain: registering a malicious workflow and executing it synchronously to capture the command output directly in the HTTP response.
+                    </p>
+
+                    <div class="code-block">
+POST /api/metadata/workflow          — Register workflow with INLINE python task<br>
+POST /api/workflow/execute/{name}/1  — Execute it synchronously<br>
+&nbsp;&nbsp;→ WorkflowResource.executeWorkflow()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;→ Inline.execute()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ evaluators.get("python")  →  PythonEvaluator.evaluate()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ Context.newBuilder("python").allowAllAccess(true).build()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ context.eval("python", wrappedExpression)   ← ARBITRARY CODE RUNS HERE<br>
+&nbsp;&nbsp;→ result returned in HTTP response
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Responsible Disclosure</h2>
+                <div class="space-y-6 text-gray-700 leading-relaxed">
+                    <p>
+                        I conducted this research following a multi-month effort to ensure coordinated disclosure across the project maintainers, GitHub, and MITRE. Despite the critical nature of the vulnerability I identified, the repository owners did not respond to initial or follow-up communications.
+                    </p>
+                    <ul class="list-disc pl-5 space-y-4 text-gray-700 font-medium">
+                        <li><span class="text-gray-900 font-bold">February 19, 2026:</span> Identified the vulnerability and reported it to the repository owners via a GitHub Security Advisory.</li>
+                        <li><span class="text-gray-900 font-bold">March 12, 2026:</span> First follow-up communication after receiving no response.</li>
+                        <li><span class="text-gray-900 font-bold">March 29, 2026:</span> Second follow-up communication.</li>
+                        <li><span class="text-gray-900 font-bold">March 30, 2026:</span> Escalated the matter to MITRE for CVE assignment after receiving no acknowledgment from the maintainers.</li>
+                        <li><span class="text-gray-900 font-bold">June 5, 2026:</span> CVE-2026-38964 was assigned and I published the findings following the expiration of the disclosure window.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Conclusion</h2>
+                <p class="text-base text-gray-700 leading-relaxed mb-6">
+                    This research highlights the severe risks of using powerful runtimes like GraalVM without strict sandboxing. By enabling <code>allowAllAccess(true)</code> in an environment that processes user-provided logic without authentication, Conductor-OSS created a direct path to total system compromise. Until an official patch is released, users are advised to ensure their instances are strictly internal and protected by robust network-level authentication.
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">References</h2>
+                <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700 font-medium">
+                    <li>
+                        <a href="https://github.com/conductor-oss/conductor" class="text-red-600 hover:underline">Github: Conductor-OSS</a>
+                    </li>
+                    <li>
+                        <a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2026-38964" class="text-red-600 hover:underline">MITRE CVE-2026-38964</a>
+                    </li>
+                    <li>
+                        <a href="https://www.graalvm.org/latest/security-guide/" class="text-red-600 hover:underline">GraalVM Security Guide: Sandboxing Runtimes</a>
+                    </li>
+                </ul>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
