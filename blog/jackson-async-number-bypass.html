@@ -2,186 +2,436 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jackson-core: Number Length Constraint Bypass in Async Parsers Leads to Denial of Service (DoS) | Research Blog</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+    <meta name="description" content="GHSA-72hv-8253-57qq — NonBlockingUtf8JsonParserBase in jackson-core fails to enforce maxNumberLength constraints, enabling CPU and memory exhaustion in reactive frameworks.">
+    <title>The 10,000-Digit Number: Bypassing Jackson's Async Parser Limits (GHSA-72hv-8253-57qq) | Prabhav Srinath</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .code-block { background: #f9fafb; color: #111827; padding: 1.5rem; border-radius: 0.375rem; border: 1px solid #e5e7eb; font-family: ui-monospace, monospace; font-size: 0.875rem; line-height: 1.7; overflow-x: auto; margin: 1.5rem 0; }
-        .highlight { color: #dc2626; font-weight: 700; }
-        .comment { color: #6b7280; font-style: italic; }
-        .keyword { color: #b91c1c; font-weight: 800; }
+    /* ---------------------------------------------------------------
+       Minimal Hacker Theme (Clean, Monospace, Terminal-Focused)
+       --------------------------------------------------------------- */
+
+    :root {
+      --bg:        #191b1d;
+      --bg-alt:    #1f2226;
+      --bg-alt2:   #2a2e35;
+      --bg-code:   #141618;
+      --fg:        #c5c8c6;
+      --fg-bright: #f0f0f0;
+      --muted:     #7c828d;
+      --border:    #2a2e35;
+      --green:     #2bbc8a;
+      --pink:      #d480aa;
+      --red:       #dc6a6a;
+      --orange:    #f99157;
+      --yellow:    #e5c07b;
+      --cyan:      #8abeb7;
+      --blue:      #61afef;
+    }
+
+    *, *:before, *:after { box-sizing: border-box; }
+
+    html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      border-top: 2px solid var(--green);
+      -webkit-text-size-adjust: 100%;
+      background-color: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      background-color: var(--bg);
+      color: var(--fg);
+      font-weight: 400;
+      font-size: 13.5px;
+      font-family: "JetBrains Mono", "Fira Code", "SFMono-Regular", "Menlo", "Consolas", monospace;
+      line-height: 1.7;
+      text-rendering: optimizeLegibility;
+      -moz-osx-font-smoothing: grayscale;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* scrollbar */
+    * { scrollbar-color: #3e4451 transparent; }
+    *::-webkit-scrollbar { width: 6px; height: 6px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background-color: #3e4451; border-radius: 3px; }
+    *::-webkit-scrollbar-thumb:hover { background-color: #5c6370; }
+
+    ::selection { background: var(--green); color: var(--bg); }
+
+    /* layout */
+    .max-width { max-width: 48rem; }
+    .mx-auto   { margin-right: auto; margin-left: auto; }
+    .px3       { padding-right: 1.75rem; padding-left: 1.75rem; }
+    .py4       { padding-top: 3.5rem; padding-bottom: 3.5rem; }
+
+    .content {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      overflow-wrap: break-word;
+    }
+
+    @media (max-width: 480px) {
+      .px3 { padding-right: 1.25rem; padding-left: 1.25rem; }
+      .py4 { padding-top: 2rem; padding-bottom: 2rem; }
+    }
+
+    /* typography */
+    h1, .h1 {
+      display: block;
+      margin-top: 2.25rem;
+      margin-bottom: 0.75rem;
+      color: var(--green);
+      letter-spacing: -0.01em;
+      font-weight: 700;
+      font-size: 1.3em;
+      line-height: 1.4;
+    }
+
+    h2, .h2 {
+      position: relative;
+      display: block;
+      margin-top: 2.25rem;
+      margin-bottom: 0.75rem;
+      color: var(--fg-bright);
+      font-weight: 700;
+      font-size: 1.05em;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.35rem;
+    }
+    h2:before {
+      content: "> ";
+      color: var(--green);
+      opacity: 0.7;
+    }
+
+    h3 {
+      color: var(--yellow);
+      font-weight: 600;
+      font-size: 0.98em;
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    h3:before {
+      content: ":: ";
+      color: var(--cyan);
+      opacity: 0.7;
+    }
+
+    h4 {
+      color: var(--pink);
+      font-weight: 600;
+      font-size: 0.9em;
+      margin-top: 1.2rem;
+      margin-bottom: 0.4rem;
+    }
+
+    p { margin: 0 0 1rem; }
+    @media (min-width: 480px) { p { text-align: justify; } }
+
+    /* links */
+    a {
+      color: var(--fg);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(43, 188, 138, 0.3);
+      transition: all 0.15s ease-in-out;
+    }
+    a:hover {
+      color: var(--green);
+      border-bottom: 1px solid var(--green);
+    }
+
+    /* metadata & badges */
+    .meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 1.75rem;
+    }
+
+    .sev {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 2px;
+      vertical-align: middle;
+      font-family: inherit;
+      border: 1px solid transparent;
+    }
+    .sev-critical { background: rgba(220, 106, 106, 0.15); color: var(--red); border-color: rgba(220, 106, 106, 0.4); }
+    .sev-high     { background: rgba(249, 145, 87, 0.15); color: var(--orange); border-color: rgba(249, 145, 87, 0.4); }
+    .sev-medium   { background: rgba(229, 192, 123, 0.15); color: var(--yellow); border-color: rgba(229, 192, 123, 0.4); }
+
+
+    /* meme container */
+    .meme-container {
+      margin: 2rem auto;
+      text-align: center;
+    }
+    .meme-container img {
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+    }
+    .meme-caption {
+      font-size: 11.5px;
+      color: var(--muted);
+      font-style: italic;
+      margin-top: 0.45rem;
+    }
+
+    /* tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 12.5px;
+    }
+    td, th {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+    th { background: var(--bg-alt); color: var(--fg-bright); font-weight: 600; }
+
+    /* code & pre */
+    pre {
+      padding: 12px 14px;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: var(--bg-code);
+      font-size: 12.5px;
+      line-height: 20px;
+      color: #abb2bf;
+      text-align: left;
+      margin: 1.2rem 0;
+    }
+    pre code { display: block; padding: 0; border: none; background: none; }
+
+    code {
+      padding: 1px 4px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      background: var(--bg-code);
+      font-size: 12px;
+      color: var(--cyan);
+    }
+
+    /* syntax */
+    .c  { color: #5c6370; font-style: italic; }
+    .k  { color: #c678dd; }
+    .s  { color: #98c379; }
+    .n  { color: #d19a66; }
+    .f  { color: #61afef; }
+    .v  { color: #e5c07b; }
+    .hl { color: var(--pink); font-weight: bold; }
+
+    /* header & footer */
+    #header { margin: 0 auto 2.5rem; width: 100%; }
+    #header:after { content: ""; display: table; clear: both; }
+    #header h1 { margin: 0; color: var(--fg-bright); font-weight: 700; font-size: 1.4rem; line-height: 2rem; letter-spacing: -0.01em; }
+    #header a { border-bottom: none; color: inherit; }
+    #header #logo {
+      display: inline-block;
+      float: left;
+      margin-right: 18px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background-color: var(--bg-alt2);
+      background-size: cover;
+      border: 1px solid var(--border);
+    }
+    #header #nav { color: var(--green); font-size: 0.82rem; margin-top: 4px; }
+    #header #nav ul { margin: 0; padding: 0; list-style-type: none; line-height: 15px; }
+    #header #nav ul a { margin-right: 12px; color: var(--green); border-bottom: none; }
+    #header #nav ul a:hover { color: var(--pink); border-bottom: 1px dotted var(--pink); }
+    #header #nav ul li { display: inline-block; margin-right: 12px; border-right: 1px solid var(--border); vertical-align: middle; }
+    #header #nav ul li:last-child { margin-right: 0; border-right: 0; }
+
+    /* blinking caret */
+    .caret { color: var(--green); animation: blink 1s step-end infinite; }
+    @keyframes blink { from, to { opacity: 1; } 50% { opacity: 0; } }
+
+    #footer {
+      margin-top: 4rem;
+      margin-bottom: 10px;
+      width: 100%;
+      color: var(--muted);
+      text-align: center;
+      font-size: 11.5px;
+      border-top: 1px solid var(--border);
+      padding-top: 1.5rem;
+    }
+    #footer ul { margin: 0; padding: 0; list-style: none; }
+    #footer li { display: inline-block; margin-right: 12px; border-right: 1px solid var(--border); }
+    #footer li:last-child { margin-right: 0; border-right: 0; }
+    #footer a { color: var(--muted); border-bottom: none; }
+    #footer a:hover { color: var(--fg-bright); border-bottom: 1px dotted var(--fg-bright); }
+
+    @media (min-width: 39rem) {
+      #footer { display: flex; justify-content: space-between; align-items: center; }
+    }
     </style>
 </head>
-<body class="bg-white text-gray-900 antialiased selection:bg-red-100 selection:text-red-900">
-    <div class="max-w-5xl mx-auto py-16 px-6 sm:px-12">
-        
-        <header class="mb-16 border-b border-gray-200 pb-10">
-            <a href="/blog/index.html" class="text-sm font-bold text-gray-500 hover:text-red-600 transition mb-6 inline-block tracking-tight">&larr; Back to Research Index</a>
-            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">Jackson-core: Number Length Constraint Bypass in Async Parsers Leads to Denial of Service (DoS)</h1>
-            <div class="flex items-center gap-4 text-xs font-bold text-red-600 uppercase tracking-widest">
-                <span>Vulnerability Research</span>
-                <span class="text-gray-300">|</span>
-                <span class="text-gray-500">February 18, 2026</span>
+<body class="max-width mx-auto px3 ltr">
+
+<div class="content post py4">
+
+    <header id="header">
+        <a href="../index.html">
+            <div id="logo" style="background-image: url(https://avatars.githubusercontent.com/u/122600613?s=400&u=2bb009eea270509b62e5d643bb40d767ac275136&v=4);"></div>
+            <div id="title">
+                <h1>prabhav<span class="caret">_</span></h1>
+            </div>
+        </a>
+        <div id="nav">
+            <ul>
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="index.html">Writing</a></li>
+                <li><a href="https://github.com/sprabhav7" target="_blank" rel="noopener">Projects</a></li>
+                <li><a href="https://linkedin.com/in/prabhav-srinath" target="_blank" rel="noopener">LinkedIn</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <article>
+        <header>
+            <h1 class="posttitle">The 10,000-Digit Number: Bypassing Jackson's Async Parser Limits (GHSA-72hv-8253-57qq)</h1>
+            <div class="meta">
+                <span class="author">Prabhav Srinath</span> |
+                <span class="postdate"><time datetime="2026-02-18">18th February 2026</time></span> |
+                <span>GHSA-72hv-8253-57qq</span> |
+                <span class="sev sev-high">CVSS 8.7 High</span>
             </div>
         </header>
 
-        <main class="space-y-20">
+        <div class="content">
 
-            <section>
-                <div class="bg-gray-50 p-6 rounded-md border border-gray-200 space-y-4">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVSS 4.0 Score</span>
-                            <span class="text-xs font-mono font-bold text-gray-900">8.7 (High)</span>
-                        </div>
-                        <div>
-                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CWE Identification</span>
-                            <span class="text-xs font-mono font-bold text-gray-900">CWE-770</span>
-                        </div>
-                    </div>
-                    <div class="pt-4 border-t border-gray-200">
-                        <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVSS Vector String</span>
-                        <code class="text-xs font-mono text-gray-600 break-all block leading-normal">CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N</code>
-                    </div>
-                    <div class="pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">Affected Versions</span>
-                            <span class="text-xs font-mono font-bold text-gray-900">jackson-core 3.x (up to 3.1.0-SNAPSHOT)</span>
-                        </div>
-                        <div>
-                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">Fixed In</span>
-                            <span class="text-xs font-mono font-bold text-gray-900">jackson-core 3.1.0</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <section>
-                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Summary</h2>
-                <p class="text-base text-gray-700 leading-relaxed max-w-4xl">
-                    A significant security oversight was identified in the asynchronous JSON parser of <code>jackson-core</code>. While the library implements a <code>maxNumberLength</code> constraint (default: 1,000 characters) to mitigate resource exhaustion attacks, this constraint is only enforced in the synchronous parsing path. The non-blocking (async) implementation bypasses the validation layer entirely by directly finalizing number tokens without calling the necessary length verification methods. This inconsistency allows remote attackers to trigger excessive memory and CPU consumption in reactive applications.
-                </p>
-            </section>
+            <h2>TL;DR</h2>
+            <p>
+                <code>jackson-core</code> implements a <code>maxNumberLength</code> constraint (default: 1,000 characters) to prevent attackers from sending multi-megabyte numbers that exhaust memory and pin CPU during <code>BigInteger</code> conversion. In synchronous parsers, length validation runs authoritative checks inside <code>resetInt()</code> and <code>resetFloat()</code>. But in the non-blocking async parser (<code>NonBlockingUtf8JsonParserBase</code>), the code finalized numbers by calling <code>_valueComplete()</code> directly, skipping the <code>reset*</code> lifecycle entirely! A 50,000-digit number rejected by synchronous parsers is quietly accepted by the reactive async parser, triggering <code>OutOfMemoryError</code> and $O(n^2)$ CPU starvation. This is <a href="https://github.com/FasterXML/jackson-core/security/advisories/GHSA-72hv-8253-57qq" target="_blank" rel="noopener">GHSA-72hv-8253-57qq</a> (CVSS 8.7), fixed in jackson-core 3.1.0.
+            </p>
 
-            <section>
-                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Impact</h2>
-                <div class="space-y-8">
-                    <ol class="list-decimal pl-5 space-y-4 text-gray-700 font-medium">
-                        <li><span class="text-gray-900 font-bold">Unbounded Memory Allocation:</span> Maliciously long numbers force the <code>TextBuffer</code> to grow indefinitely, leading to <code>OutOfMemoryError</code>.</li>
-                        <li><span class="text-gray-900 font-bold">CPU Exhaustion:</span> Processing large numbers during subsequent <code>BigInteger</code> conversion triggers O(n²) operations, pinning worker threads.</li>
-                        <li><span class="text-gray-900 font-bold">Application Instability:</span> The resource starvation can crash the entire JVM, affecting all concurrent users in a shared environment.</li>
-                    </ol>
-                </div>
-            </section>
+            <h2>How I Discovered This</h2>
+            <p>
+                Right after disclosing the <a href="jackson-datainput-nesting-bypass.html">DataInput nesting depth bypass</a>, I asked myself: <em>"What other constraints exist in Jackson's <code>StreamReadConstraints</code>, and which parsers fail to enforce them?"</em>
+            </p>
+            <p>
+                Jackson supports non-blocking asynchronous parsing for event-driven reactive frameworks (like Spring WebFlux and Vert.x). Because async parsers process byte chunks that arrive over time (chunked non-blocking I/O), they have custom token finalizers.
+            </p>
+            <p>
+                I inspected <code>NonBlockingUtf8JsonParserBase.java</code> and found <code>_finishNumberIntegralPart()</code>:
+            </p>
 
-            <section>
-                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Description</h2>
-                <div class="space-y-6 text-gray-700 leading-relaxed">
-                    <p>
-                        The root cause is an architectural inconsistency between <code>ParserBase</code> and <code>NonBlockingUtf8JsonParserBase</code>. In the synchronous path, number parsing lifecycle always concludes with a call to <code>resetInt()</code> or <code>resetFloat()</code>, which are the authoritative points for length validation.
-                    </p>
+            <pre><code><span class="c">// NonBlockingUtf8JsonParserBase.java</span>
+<span class="k">protected void</span> <span class="f">_finishNumberIntegralPart</span>(<span class="k">char</span>[] outBuf, <span class="k">int</span> outPtr) {
+    _textBuffer.<span class="f">setCurrentLength</span>(outPtr);
+    <span class="c">// BUG: Directly completes token, completely bypassing resetInt() validation!</span>
+    <span class="hl">_valueComplete(JsonToken.VALUE_NUMBER_INT);</span>
+}</code></pre>
 
-                    <!-- Sync vs Async Path Diagram -->
-                    <div class="bg-gray-50 border border-gray-200 rounded-md p-5 my-4">
-                        <p class="text-xs font-bold uppercase tracking-widest text-red-600 mb-4">Number Parsing Lifecycle: Sync vs. Async</p>
-                        <svg viewBox="0 0 680 260" xmlns="http://www.w3.org/2000/svg" class="w-full max-w-2xl mx-auto block">
-                            <defs>
-                                <marker id="sa" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
-                                    <path d="M0,0 L7,3.5 L0,7 Z" fill="#16a34a"/>
-                                </marker>
-                                <marker id="ra" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
-                                    <path d="M0,0 L7,3.5 L0,7 Z" fill="#dc2626"/>
-                                </marker>
-                            </defs>
+<div class="meme-container">
+  <img src="https://media.giphy.com/media/d3mlE7uhX8KFgEmY/giphy.gif" alt="Roll Safe tapping head meme" style="max-height: 280px;">
+  <div class="meme-caption">"You don't have to fail maxNumberLength checks if you never call validateIntegerLength()"</div>
+</div>
 
-                            <!-- LEFT: Sync path -->
-                            <text x="10" y="18" fill="#16a34a" font-size="11" font-family="monospace" font-weight="bold">SYNC PATH (safe)</text>
+            <p>
+                In the standard synchronous parser, completing a number token calls <code>resetInt()</code> on <code>ParserBase</code>:
+            </p>
 
-                            <rect x="10" y="28" width="270" height="28" rx="3" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
-                            <text x="145" y="47" text-anchor="middle" fill="#14532d" font-size="11" font-family="monospace">digits accumulated in TextBuffer</text>
+            <pre><code><span class="c">// Synchronous ParserBase.java (Safe Path)</span>
+<span class="k">public</span> JsonToken <span class="f">resetInt</span>(<span class="k">boolean</span> negative, <span class="k">int</span> intLen) <span class="k">throws</span> IOException {
+    <span class="hl">_streamReadConstraints.validateIntegerLength(intLen);</span> <span class="c">// ← ENFORCED!</span>
+    ...
+    <span class="k">return</span> (_currToken = JsonToken.VALUE_NUMBER_INT);
+}</code></pre>
 
-                            <line x1="145" y1="56" x2="145" y2="76" stroke="#16a34a" stroke-width="1.5" marker-end="url(#sa)"/>
+            <div class="meme-container">
+                <img src="https://media.giphy.com/media/32mC2kXYWCsg0/giphy.gif" alt="Sweating Jordan Peele meme" style="max-height: 280px;">
+                <div class="meme-caption">JVM worker thread when asked to construct BigInteger from a 100,000-digit string</div>
+            </div>
 
-                            <rect x="10" y="76" width="270" height="28" rx="3" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
-                            <text x="145" y="95" text-anchor="middle" fill="#14532d" font-size="11" font-family="monospace">resetInt() / resetFloat() called</text>
+            <h2>Side-by-Side Call Path Breakdown</h2>
+            <pre><code><span class="c">SYNC PATH (Safe)                          ASYNC PATH (Vulnerable)</span>
 
-                            <line x1="145" y1="104" x2="145" y2="124" stroke="#16a34a" stroke-width="1.5" marker-end="url(#sa)"/>
+digits accumulated in TextBuffer          digits accumulated in TextBuffer
+            |                                         |
+            v                                         v
+resetInt() / resetFloat() called           <span class="hl">_valueComplete() called directly</span>
+            |                                         |
+            v                                         v
+validateIntegerLength() checks cap        validateIntegerLength()  <span class="hl">← SKIPPED</span>
+            |                                         |
+            v                                         v
+<span class="f">StreamConstraintsException thrown</span>          <span class="hl">unbounded number accepted</span>
+                                                      |
+                                                      v
+                                          TextBuffer grows unbounded → OOM
+                                          BigInteger conversion → O(n²) CPU</code></pre>
 
-                            <rect x="10" y="124" width="270" height="28" rx="3" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
-                            <text x="145" y="143" text-anchor="middle" fill="#14532d" font-size="11" font-family="monospace">validateIntegerLength() checks limit</text>
+            <h2>Exploitation Impact</h2>
+            <ul>
+                <li><strong>Memory Exhaustion (OOM):</strong> A streaming payload containing <code>{"value": 99999999...}</code> forces Jackson's internal <code>TextBuffer</code> to repeatedly allocate larger <code>char[]</code> chunks until JVM heap memory is exhausted.</li>
+                <li><strong>O(n²) BigInteger CPU Pinning:</strong> When downstream application logic deserializes the number into a <code>BigInteger</code> or <code>BigDecimal</code>, the conversion algorithm runs in $O(n^2)$ time complexity, freezing the reactive event loop thread.</li>
+                <li><strong>Reactive Stack Vulnerability:</strong> Because async parsers are specifically used in edge proxies and reactive microservices (Spring WebFlux), the systems most exposed to untrusted internet traffic were the ones missing the check.</li>
+            </ul>
 
-                            <line x1="145" y1="152" x2="145" y2="172" stroke="#16a34a" stroke-width="1.5" marker-end="url(#sa)"/>
+            <h2>The Fix</h2>
+            <p>
+                In <strong>jackson-core 3.1.0</strong>, FasterXML updated the non-blocking token completion routines to explicitly invoke <code>_streamReadConstraints.validateIntegerLength(len)</code> before finalizing value tokens.
+            </p>
 
-                            <rect x="10" y="172" width="270" height="28" rx="3" fill="#16a34a"/>
-                            <text x="145" y="191" text-anchor="middle" fill="white" font-size="11" font-family="monospace" font-weight="bold">✓ StreamConstraintsException thrown</text>
+            <h2>Disclosure Timeline</h2>
+            <ul>
+                <li><strong>February 2026:</strong> Variant identified during cross-parser constraint analysis.</li>
+                <li><strong>February 2026:</strong> Disclosed to FasterXML maintainers under GHSA-72hv-8253-57qq.</li>
+                <li><strong>February 18, 2026:</strong> Resolved in jackson-core 3.1.0 release.</li>
+            </ul>
 
-                            <!-- RIGHT: Async path -->
-                            <text x="390" y="18" fill="#dc2626" font-size="11" font-family="monospace" font-weight="bold">ASYNC PATH (vulnerable)</text>
+            <h2>Advisory Telemetry</h2>
+            <table>
+                <tr><th>Field</th><th>Details</th></tr>
+                <tr><td>Advisory ID</td><td><a href="https://github.com/FasterXML/jackson-core/security/advisories/GHSA-72hv-8253-57qq" target="_blank" rel="noopener">GHSA-72hv-8253-57qq</a></td></tr>
+                <tr><td>CVSS 4.0 Score</td><td><span class="sev sev-high">8.7 (High)</span></td></tr>
+                <tr><td>Vector String</td><td><code>CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N</code></td></tr>
+                <tr><td>CWE</td><td>CWE-770: Allocation of Resources Without Limits or Throttling</td></tr>
+                <tr><td>Affected Software</td><td>jackson-core 3.x prior to 3.1.0</td></tr>
+            </table>
 
-                            <rect x="390" y="28" width="270" height="28" rx="3" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
-                            <text x="525" y="47" text-anchor="middle" fill="#991b1b" font-size="11" font-family="monospace">digits accumulated in TextBuffer</text>
+            <h2>References</h2>
+            <ul>
+                <li><a href="https://github.com/FasterXML/jackson-core/security/advisories/GHSA-72hv-8253-57qq" target="_blank" rel="noopener">GitHub Advisory: GHSA-72hv-8253-57qq</a></li>
+                <li><a href="jackson-datainput-nesting-bypass.html">Related Finding: CVE-2026-29062 (DataInput Nesting Bypass)</a></li>
+            </ul>
 
-                            <line x1="525" y1="56" x2="525" y2="76" stroke="#dc2626" stroke-width="1.5" marker-end="url(#ra)"/>
+        </div>
+    </article>
 
-                            <rect x="390" y="76" width="270" height="28" rx="3" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
-                            <text x="525" y="95" text-anchor="middle" fill="#991b1b" font-size="11" font-family="monospace">_valueComplete() called directly</text>
-
-                            <line x1="525" y1="104" x2="525" y2="124" stroke="#dc2626" stroke-width="1.5" marker-end="url(#ra)"/>
-
-                            <rect x="390" y="124" width="270" height="28" rx="3" fill="#f3f4f6" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="5,3"/>
-                            <text x="525" y="143" text-anchor="middle" fill="#9ca3af" font-size="11" font-family="monospace">validateIntegerLength() ← SKIPPED</text>
-
-                            <line x1="525" y1="152" x2="525" y2="172" stroke="#dc2626" stroke-width="1.5" marker-end="url(#ra)"/>
-
-                            <rect x="390" y="172" width="270" height="28" rx="3" fill="#dc2626"/>
-                            <text x="525" y="191" text-anchor="middle" fill="white" font-size="11" font-family="monospace" font-weight="bold">❌ Unbounded number accepted</text>
-
-                            <!-- Resource exhaustion note -->
-                            <rect x="390" y="215" width="270" height="38" rx="3" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5"/>
-                            <text x="525" y="231" text-anchor="middle" fill="#92400e" font-size="10" font-family="monospace">TextBuffer grows unbounded → OOM</text>
-                            <text x="525" y="247" text-anchor="middle" fill="#92400e" font-size="10" font-family="monospace">BigInteger conversion → O(n²) CPU</text>
-                        </svg>
-                    </div>
-
-                    <div class="code-block">
-                        <span class="comment">// Vulnerable Async Path Implementation</span><br>
-                        <span class="keyword">protected</span> <span class="keyword">void</span> _finishNumberIntegralPart(<span class="keyword">char</span>[] outBuf, <span class="keyword">int</span> outPtr) {<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;_textBuffer.setCurrentLength(outPtr);<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// BUG: Directly finalizes token, skipping resetInt() / validateIntegerLength()</span><br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="highlight">_valueComplete(JsonToken.VALUE_NUMBER_INT);</span><br>
-                        }
-                    </div>
-
-                    <p>
-                        By skipping the <code>reset*</code> lifecycle methods, the async parser never executes the code that checks the <code>StreamReadConstraints</code>. This means that while a sync parser will throw a <code>StreamConstraintsException</code> for a 5,000-digit number, the async parser will happily store it in memory, allowing for easy exploitation via large JSON payloads.
-                    </p>
-                </div>
-            </section>
-
-            <section>
-                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Conclusion</h2>
-                <p class="text-base text-gray-700 leading-relaxed mb-6">
-                    This vulnerability highlights that security constraints must be enforced at the lowest common denominator in the parsing pipeline. Developers using Jackson's non-blocking parser in Spring WebFlux or other reactive environments should immediately upgrade to <strong>jackson-core 3.1.0</strong> or later. This update ensures that both synchronous and asynchronous parsing paths correctly route through the length validation logic.
-                </p>
-            </section>
-
-            <section>
-                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">References</h2>
-                <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700 font-medium">
-                    <li>
-                        <a href="https://github.com/FasterXML/jackson-core/security/advisories/GHSA-72hv-8253-57qq" class="text-red-600 hover:underline">GitHub Advisory: GHSA-72hv-8253-57qq</a>
-                    </li>
+    <footer id="footer">
+        <div class="footer-left">
+            &copy; 2026 Prabhav Srinath
+        </div>
+        <div class="footer-right">
+            <nav>
+                <ul>
+                    <li><a href="../index.html">Home</a></li>
+                    <li><a href="index.html">Writing</a></li>
+                    <li><a href="https://github.com/sprabhav7" target="_blank" rel="noopener">Projects</a></li>
+                    <li><a href="https://linkedin.com/in/prabhav-srinath" target="_blank" rel="noopener">LinkedIn</a></li>
                 </ul>
-            </section>
+            </nav>
+        </div>
+    </footer>
 
-            <section class="mt-12">
-                <p class="text-sm text-gray-600 italic">
-                    Special thanks to the Jackson maintainers for their exceptionally quick response and effective mitigations in addressing these findings.
-                </p>
-            </section>
-        </main>
-    </div>
+</div>
 </body>
 </html>
