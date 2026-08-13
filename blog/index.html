@@ -2,113 +2,365 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blog | Prabhav Srinath</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+    <meta name="description" content="Detailed write-ups on parser bugs, protocol state machine flaws, and vulnerability research.">
+    <title>Writing | Prabhav Srinath</title>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+    /* ---------------------------------------------------------------
+       Minimal Hacker Theme (Clean, Monospace, Terminal-Focused)
+       --------------------------------------------------------------- */
+
+    :root {
+      --bg:        #191b1d;
+      --bg-alt:    #1f2226;
+      --bg-alt2:   #2a2e35;
+      --bg-code:   #141618;
+      --fg:        #c5c8c6;
+      --fg-bright: #f0f0f0;
+      --muted:     #7c828d;
+      --border:    #2a2e35;
+      --green:     #2bbc8a;
+      --pink:      #d480aa;
+      --red:       #dc6a6a;
+      --orange:    #f99157;
+      --yellow:    #e5c07b;
+      --cyan:      #8abeb7;
+      --blue:      #61afef;
+    }
+
+    *, *:before, *:after { box-sizing: border-box; }
+
+    html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      border-top: 2px solid var(--green);
+      -webkit-text-size-adjust: 100%;
+      background-color: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      background-color: var(--bg);
+      color: var(--fg);
+      font-weight: 400;
+      font-size: 13.5px;
+      font-family: "JetBrains Mono", "Fira Code", "SFMono-Regular", "Menlo", "Consolas", monospace;
+      line-height: 1.7;
+      text-rendering: optimizeLegibility;
+      -moz-osx-font-smoothing: grayscale;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* scrollbar */
+    * { scrollbar-color: #3e4451 transparent; }
+    *::-webkit-scrollbar { width: 6px; height: 6px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background-color: #3e4451; border-radius: 3px; }
+    *::-webkit-scrollbar-thumb:hover { background-color: #5c6370; }
+
+    ::selection { background: var(--green); color: var(--bg); }
+
+    /* layout */
+    .max-width { max-width: 48rem; }
+    .mx-auto   { margin-right: auto; margin-left: auto; }
+    .px3       { padding-right: 1.75rem; padding-left: 1.75rem; }
+    .py4       { padding-top: 3.5rem; padding-bottom: 3.5rem; }
+
+    .content {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      overflow-wrap: break-word;
+    }
+
+    @media (max-width: 480px) {
+      .px3 { padding-right: 1.25rem; padding-left: 1.25rem; }
+      .py4 { padding-top: 2rem; padding-bottom: 2rem; }
+    }
+
+    /* typography */
+    h1, .h1 {
+      display: block;
+      margin-top: 2.25rem;
+      margin-bottom: 1rem;
+      color: var(--green);
+      letter-spacing: -0.01em;
+      font-weight: 700;
+      font-size: 1.3em;
+    }
+
+    p { margin: 0 0 1rem; }
+    @media (min-width: 480px) { p { text-align: justify; } }
+
+    /* links */
+    a {
+      color: var(--fg);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(43, 188, 138, 0.3);
+      transition: all 0.15s ease-in-out;
+    }
+    a:hover {
+      color: var(--green);
+      border-bottom: 1px solid var(--green);
+    }
+
+    /* header */
+    #header {
+      margin: 0 auto 2.5rem;
+      width: 100%;
+    }
+    #header:after { content: ""; display: table; clear: both; }
+    #header h1, #header .h1 {
+      margin-top: 0;
+      margin-bottom: 0;
+      color: var(--fg-bright);
+      font-weight: 700;
+      font-size: 1.4rem;
+      line-height: 2rem;
+      letter-spacing: -0.01em;
+    }
+    #header a { border-bottom: none; color: inherit; }
+    #header #logo {
+      display: inline-block;
+      float: left;
+      margin-right: 18px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background-color: var(--bg-alt2);
+      background-size: cover;
+      border: 1px solid var(--border);
+    }
+    #header #nav {
+      color: var(--green);
+      font-size: 0.82rem;
+      margin-top: 4px;
+    }
+    #header #nav ul {
+      margin: 0;
+      padding: 0;
+      list-style-type: none;
+      line-height: 15px;
+    }
+    #header #nav ul a {
+      margin-right: 12px;
+      color: var(--green);
+      border-bottom: none;
+    }
+    #header #nav ul a:hover {
+      color: var(--pink);
+      border-bottom: 1px dotted var(--pink);
+    }
+    #header #nav ul li {
+      display: inline-block;
+      margin-right: 12px;
+      border-right: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    #header #nav ul li:last-child { margin-right: 0; border-right: 0; }
+    #header #nav ul li:last-child a { margin-right: 0; }
+
+    @media screen and (max-width: 480px) {
+      #header #title { display: table; margin-right: 4rem; min-height: 48px; }
+      #header #title h1 { display: table-cell; vertical-align: middle; font-size: 1.2rem; }
+      #header #nav ul li { border-right: 0; margin-right: 10px; }
+    }
+
+    /* blinking caret */
+    .caret {
+      color: var(--green);
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink {
+      from, to { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* lists */
+    .post-list {
+      padding: 0;
+      margin: 1rem 0 2rem;
+    }
+    .post-list .post-item {
+      margin-bottom: 0.75rem;
+      margin-left: 0;
+      list-style-type: none;
+    }
+    .post-list .post-item .meta {
+      display: block;
+      margin-right: 16px;
+      min-width: 105px;
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+    @media (min-width: 480px) {
+      .post-list .post-item {
+        display: flex;
+        align-items: baseline;
+        margin-bottom: 0.55rem;
+      }
+      .post-list .post-item .meta {
+        flex: 0 0 8.5rem;
+        text-align: left;
+        margin-right: 16px;
+      }
+    }
+
+    /* CVSS Badges */
+    .sev {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 2px;
+      vertical-align: middle;
+      font-family: inherit;
+      margin-left: 6px;
+      border: 1px solid transparent;
+    }
+    .sev-critical { background: rgba(220, 106, 106, 0.15); color: var(--red); border-color: rgba(220, 106, 106, 0.4); }
+    .sev-high     { background: rgba(249, 145, 87, 0.15); color: var(--orange); border-color: rgba(249, 145, 87, 0.4); }
+    .sev-medium   { background: rgba(229, 192, 123, 0.15); color: var(--yellow); border-color: rgba(229, 192, 123, 0.4); }
+
+    /* footer */
+    #footer {
+      margin-top: 4rem;
+      margin-bottom: 10px;
+      width: 100%;
+      color: var(--muted);
+      text-align: center;
+      font-size: 11.5px;
+      border-top: 1px solid var(--border);
+      padding-top: 1.5rem;
+    }
+    #footer ul { margin: 0; padding: 0; list-style: none; }
+    #footer li {
+      display: inline-block;
+      margin-right: 12px;
+      border-right: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    #footer li:last-child { margin-right: 0; border-right: 0; }
+    #footer a {
+      color: var(--muted);
+      border-bottom: none;
+    }
+    #footer a:hover { color: var(--fg-bright); border-bottom: 1px dotted var(--fg-bright); }
+
+    @media (min-width: 39rem) {
+      #footer {
+        display: flex;
+        flex-flow: row wrap;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+      #footer .footer-left  { align-self: flex-start; margin-right: 20px; }
+      #footer .footer-right { align-self: flex-end; }
+    }
     </style>
 </head>
-<body class="bg-white text-gray-900 antialiased selection:bg-red-100 selection:text-red-900">
-    <div class="max-w-5xl mx-auto py-16 px-6 sm:px-12">
-        
-        <header class="mb-16 border-b border-gray-200 pb-8">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-3">Research Blog</h1>
-            <p class="text-xl text-gray-600 font-light">Deep dives into vulnerabilities, exploit dev, and security research.</p>
-            
-            <div class="mt-6 flex flex-wrap gap-6 text-sm font-semibold">
-                <a href="/index.html" class="text-gray-500 hover:text-red-600 transition">&larr; Back to Home</a>
+<body class="max-width mx-auto px3 ltr">
+
+<div class="content index py4">
+
+    <header id="header">
+        <a href="../index.html">
+            <div id="logo" style="background-image: url(https://avatars.githubusercontent.com/u/122600613?s=400&u=2bb009eea270509b62e5d643bb40d767ac275136&v=4);"></div>
+            <div id="title">
+                <h1>prabhav<span class="caret">_</span></h1>
             </div>
-        </header>
+        </a>
+        <div id="nav">
+            <ul>
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="index.html">Writing</a></li>
+                <li><a href="https://github.com/sprabhav7" target="_blank" rel="noopener">Projects</a></li>
+                <li><a href="https://linkedin.com/in/prabhav-srinath" target="_blank" rel="noopener">LinkedIn</a></li>
+            </ul>
+        </div>
+    </header>
 
-        <main class="space-y-16">
+    <section id="about">
+        <p>
+            Detailed technical write-ups and vulnerability research walkthroughs.
+            Each post includes source-to-sink code flows, root-cause analysis, complete reproducing PoCs,
+            responsible disclosure timelines, and architectural fix recommendations.
+        </p>
+    </section>
 
-            <article class="border-l-2 border-red-600 pl-5 md:pl-8">
-                <a href="/blog/conductor-python-rce.html" class="group">
-                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">CVE-2026-38964: Unsandboxed GraalVM Python Context in Conductor-OSS Leads to Remote Code Execution (RCE)</h2>
-                </a>
-                <div class="flex items-center gap-3 mt-2 mb-4">
-                    <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Vulnerability Research</span>
-                    <span class="text-xs text-gray-500 font-medium">June 2026</span>
-                </div>
-                <p class="text-base text-gray-700 leading-relaxed max-w-3xl">
-                    An unauthenticated RCE vulnerability in Conductor-OSS allows for full server compromise via over-privileged GraalVM Python contexts. This research explores the default-enabled evaluator configuration and the subsequent multi-month responsible disclosure process.
-                </p>
-                <a href="/blog/conductor-python-rce.html" class="inline-block mt-4 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
-            </article>
+    <section id="writing">
+        <span class="h1">// Writing</span>
 
-            <article class="border-l-2 border-red-600 pl-5 md:pl-8">
-                <a href="/blog/cups-heap-overflow.html" class="group">
-                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">CVE-2026-34979: Heap-based Buffer Overflow in CUPS Scheduler Leads to Denial of Service (DoS)</h2>
-                </a>
-                <div class="flex items-center gap-3 mt-2 mb-4">
-                    <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Vulnerability Research</span>
-                    <span class="text-xs text-gray-500 font-medium">April 2026</span>
-                </div>
-                <p class="text-base text-gray-700 leading-relaxed max-w-3xl">
-                    An unauthenticated heap-based buffer overflow in <code>cupsd</code> allows for remote denial-of-service. This research explores the size calculation discrepancy in URI attribute handling.
-                </p>
-                <a href="/blog/cups-heap-overflow.html" class="inline-block mt-4 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
-            </article>
+        <ul class="post-list">
+            <li class="post-item">
+                <div class="meta"><time datetime="2026-06-05">5th Jun 2026</time></div>
+                <span>
+                    <a href="conductor-python-rce.html">Zero Auth, allowAllAccess(true), and RCE in Conductor-OSS (CVE-2026-38964)</a>
+                    <span class="sev sev-critical">9.3</span>
+                </span>
+            </li>
+            <li class="post-item">
+                <div class="meta"><time datetime="2026-04-01">1st Apr 2026</time></div>
+                <span>
+                    <a href="cups-heap-overflow.html">Measuring One String, Copying Another: Heap Overflow in CUPS (CVE-2026-34979)</a>
+                    <span class="sev sev-medium">6.9</span>
+                </span>
+            </li>
+            <li class="post-item">
+                <div class="meta"><time datetime="2026-03-24">24th Mar 2026</time></div>
+                <span>
+                    <a href="netty-continuation-flood.html">When 0 Bytes Burn 100% CPU: Netty HTTP/2 CONTINUATION Flood (CVE-2026-33871)</a>
+                    <span class="sev sev-high">8.7</span>
+                </span>
+            </li>
+            <li class="post-item">
+                <div class="meta"><time datetime="2026-03-23">23rd Mar 2026</time></div>
+                <span>
+                    <a href="nginx-mp4-overflow.html">Tricking nginx's Bounds Check: 32-Bit Integer Overflow in MP4 Module (CVE-2026-27784)</a>
+                    <span class="sev sev-high">8.5</span>
+                </span>
+            </li>
+            <li class="post-item">
+                <div class="meta"><time datetime="2026-02-18">18th Feb 2026</time></div>
+                <span>
+                    <a href="jackson-datainput-nesting-bypass.html">The Bypassed Gatekeeper: Nesting Depth Bypass in Jackson DataInput (CVE-2026-29062)</a>
+                    <span class="sev sev-high">8.7</span>
+                </span>
+            </li>
+            <li class="post-item">
+                <div class="meta"><time datetime="2026-02-18">18th Feb 2026</time></div>
+                <span>
+                    <a href="jackson-async-number-bypass.html">The 10,000-Digit Number: Bypassing Jackson's Async Parser Limits (GHSA-72hv-8253-57qq)</a>
+                    <span class="sev sev-high">8.7</span>
+                </span>
+            </li>
+        </ul>
+    </section>
 
-            <article class="border-l-2 border-red-600 pl-5 md:pl-8">
-                <a href="/blog/netty-continuation-flood.html" class="group">
-                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">CVE-2026-33871: Netty's Uncapped HTTP/2 CONTINUATION Frames Leads to Denial of Service (DoS)</h2>
-                </a>
-                <div class="flex items-center gap-3 mt-2 mb-4">
-                    <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Vulnerability Research</span>
-                    <span class="text-xs text-gray-500 font-medium">March 2026</span>
-                </div>
-                <p class="text-base text-gray-700 leading-relaxed max-w-3xl">
-                    A critical oversight in Netty's HTTP/2 implementation allows for unbounded <code>CONTINUATION</code> frames, leading to CPU exhaustion and connection monopolization. This research explores how 0-byte fragments bypass existing byte-level constraints.
-                </p>
-                <a href="/blog/netty-continuation-flood.html" class="inline-block mt-4 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
-            </article>
+    <footer id="footer">
+        <div class="footer-left">
+            &copy; 2026 Prabhav Srinath
+        </div>
+        <div class="footer-right">
+            <nav>
+                <ul>
+                    <li><a href="../index.html">Home</a></li>
+                    <li><a href="index.html">Writing</a></li>
+                    <li><a href="https://github.com/sprabhav7" target="_blank" rel="noopener">Projects</a></li>
+                    <li><a href="https://linkedin.com/in/prabhav-srinath" target="_blank" rel="noopener">LinkedIn</a></li>
+                </ul>
+            </nav>
+        </div>
+    </footer>
 
-            <article class="border-l-2 border-red-600 pl-5 md:pl-8">
-                <a href="/blog/nginx-mp4-overflow.html" class="group">
-                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">CVE-2026-27784: Integer Overflow in nginx ngx_http_mp4_module causes Out of Bounds Read/Write</h2>
-                </a>
-                <div class="flex items-center gap-3 mt-2 mb-4">
-                    <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Vulnerability Research</span>
-                    <span class="text-xs text-gray-500 font-medium">March 2026</span>
-                </div>
-                <p class="text-base text-gray-700 leading-relaxed max-w-3xl">
-                    An integer overflow vulnerability in nginx's MP4 module allows for heap out-of-bounds reads and potential DoS. This post details how large entry counts bypass security checks on 32-bit platforms.
-                </p>
-                <a href="/blog/nginx-mp4-overflow.html" class="inline-block mt-4 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
-            </article>
-
-            <article class="border-l-2 border-red-600 pl-5 md:pl-8">
-                <a href="/blog/jackson-datainput-nesting-bypass.html" class="group">
-                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">CVE-2026-29062: Nesting Depth Bypass in DataInput Parser Leads to Unsafe Deserialization in jackson-core</h2>
-                </a>
-                <div class="flex items-center gap-3 mt-2 mb-4">
-                    <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Vulnerability Research</span>
-                    <span class="text-xs text-gray-500 font-medium">February 2026</span>
-                </div>
-                <p class="text-base text-gray-700 leading-relaxed max-w-3xl">
-                    UTF8DataInputJsonParser bypasses nesting depth limits, potentially causing StackOverflowErrors and DoS. This post details how direct parsing context creation skips critical depth validation.
-                </p>
-                <a href="/blog/jackson-datainput-nesting-bypass.html" class="inline-block mt-4 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
-            </article>
-
-            <article class="border-l-2 border-red-600 pl-5 md:pl-8">
-                <a href="/blog/jackson-async-number-bypass.html" class="group">
-                    <h2 class="font-bold text-gray-900 text-2xl group-hover:text-red-600 transition">Jackson-core: Number Length Constraint Bypass in Async Parsers Leads to Denial of Service (DoS)</h2>
-                </a>
-                <div class="flex items-center gap-3 mt-2 mb-4">
-                    <span class="bg-gray-100 text-gray-700 px-2 py-1 text-xs font-semibold rounded">Vulnerability Research</span>
-                    <span class="text-xs text-gray-500 font-medium">January 26, 2026</span>
-                </div>
-                <p class="text-base text-gray-700 leading-relaxed max-w-3xl">
-                    The async JSON parser in jackson-core fails to enforce maxNumberLength constraints, leading to memory and CPU exhaustion. This research explores the missing validation step in the non-blocking code path.
-                </p>
-                <a href="/blog/jackson-async-number-bypass.html" class="inline-block mt-4 text-sm font-semibold text-red-600 hover:text-red-800 transition">Read Write-up &rarr;</a>
-            </article>
-
-        </main>
-    </div>
+</div>
 </body>
 </html>

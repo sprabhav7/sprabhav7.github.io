@@ -408,12 +408,6 @@ ngx_http_mp4_read_co64_atom    entry <span class="n">8</span> bytes    overflows
                 In <strong>nginx 1.29.7</strong>, the maintainers resolved this across all affected MP4 atom parsing functions by explicitly casting entry counts to <code>uint64_t</code> prior to multiplication, preventing 32-bit arithmetic wraparound before the buffer bounds check is evaluated.
             </p>
 
-            <h2>Disclosure Timeline</h2>
-            <ul>
-                <li><strong>February 2026:</strong> Vulnerability discovered during 32-bit parser fuzzing and static analysis.</li>
-                <li><strong>March 2026:</strong> Disclosed to F5 / nginx security team.</li>
-                <li><strong>March 23, 2026:</strong> Patched in nginx 1.29.7 with advisory K000160336 / CVE-2026-27784.</li>
-            </ul>
 
             <h2>Advisory Telemetry</h2>
             <table>

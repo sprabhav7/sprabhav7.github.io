@@ -426,12 +426,6 @@ tls.sendall(b"\x00\x00\x01\x01\x00\x00\x00\x00\x01\x82") <span class="c"># HEADE
                 The Netty maintainers resolved this in <strong>Netty 4.1.132.Final</strong> and <strong>4.2.11.Final</strong> (PR #13969) by enforcing an explicit count limit on consecutive <code>CONTINUATION</code> frames per HTTP/2 header block, closing the vector where zero-byte frames could bypass the byte accumulator and exhaust CPU resources.
             </p>
 
-            <h2>Disclosure Timeline</h2>
-            <ul>
-                <li><strong>February 2026:</strong> Vulnerability discovered during Netty HTTP/2 frame engine audit.</li>
-                <li><strong>March 2026:</strong> Disclosed to Netty core maintainers under GHSA-w9fj-cfpg-grvv / CERT/CC VU#421644.</li>
-                <li><strong>March 24, 2026:</strong> Patched in Netty 4.1.132.Final and 4.2.11.Final with CVE-2026-33871 assigned.</li>
-            </ul>
 
             <h2>Advisory Telemetry</h2>
             <table>

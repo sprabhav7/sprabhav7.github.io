@@ -394,12 +394,6 @@ _nextTokenNotInObject() sees <span class="s">'['</span>
                 In <strong>jackson-core 3.1.0</strong>, FasterXML refactored <code>UTF8DataInputJsonParser</code> so that array and object context creation routes directly through the parser's validated helper methods, ensuring <code>StreamReadConstraints.validateNestingDepth()</code> is checked on every nested structure.
             </p>
 
-            <h2>Disclosure Timeline</h2>
-            <ul>
-                <li><strong>January 2026:</strong> Issue discovered during parser constraints audit.</li>
-                <li><strong>February 2026:</strong> Reported to FasterXML maintainers (GHSA-6v53-7c9g-w56r).</li>
-                <li><strong>February 18, 2026:</strong> Patch merged upstream and CVE-2026-29062 published.</li>
-            </ul>
 
             <h2>Advisory Telemetry</h2>
             <table>
