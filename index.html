@@ -38,7 +38,7 @@
     html {
       margin: 0;
       padding: 0;
-      height: 100%;
+      min-height: 100%;
       border-top: 2px solid var(--green);
       -webkit-text-size-adjust: 100%;
       background-color: var(--bg);
@@ -56,6 +56,8 @@
       text-rendering: optimizeLegibility;
       -moz-osx-font-smoothing: grayscale;
       -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      width: 100%;
     }
 
     /* scrollbar */
@@ -68,7 +70,7 @@
     ::selection { background: var(--green); color: var(--bg); }
 
     /* layout */
-    .max-width { max-width: 48rem; }
+    .max-width { max-width: 48rem; width: 100%; }
     .mx-auto   { margin-right: auto; margin-left: auto; }
     .px3       { padding-right: 1.75rem; padding-left: 1.75rem; }
     .py4       { padding-top: 3.5rem; padding-bottom: 3.5rem; }
@@ -79,6 +81,18 @@
       flex-direction: column;
       min-height: 100%;
       overflow-wrap: break-word;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    section {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
     }
 
     @media (max-width: 480px) {
@@ -95,6 +109,14 @@
       letter-spacing: -0.01em;
       font-weight: 700;
       font-size: 1.3em;
+    }
+    .h1 a {
+      color: var(--green);
+      text-decoration: none;
+    }
+    .h1 a:hover {
+      color: var(--pink);
+      text-decoration: underline;
     }
 
     h2, .h2 {
@@ -119,17 +141,19 @@
 
     /* links */
     a {
-      color: var(--fg);
-      text-decoration: none;
-      border-bottom: 1px solid rgba(43, 188, 138, 0.3);
+      color: var(--green);
+      text-decoration: underline;
+      text-decoration-color: rgba(43, 188, 138, 0.4);
+      text-underline-offset: 2.5px;
+      text-decoration-thickness: 1px;
       transition: all 0.15s ease-in-out;
     }
     a:hover {
-      color: var(--green);
-      border-bottom: 1px solid var(--green);
+      color: var(--pink);
+      text-decoration-color: var(--pink);
     }
     a.icon {
-      border-bottom: none;
+      text-decoration: none;
       color: var(--green);
       font-size: 1.1rem;
       margin: 0 4px;
@@ -138,7 +162,39 @@
     }
     a.icon:hover {
       color: var(--pink);
-      border-bottom: none;
+      text-decoration: none;
+    }
+
+    a.highlight-link {
+      color: var(--green);
+      font-weight: 700;
+      text-decoration: none;
+      border: 1px solid rgba(43, 188, 138, 0.4);
+      border-radius: 3px;
+      padding: 1px 6px;
+      font-size: 11px;
+      margin-left: 6px;
+      display: inline-block;
+      vertical-align: middle;
+      background: rgba(43, 188, 138, 0.05);
+      transition: all 0.15s ease-in-out;
+    }
+    a.highlight-link:hover {
+      color: var(--bg);
+      background: var(--green);
+      border-color: var(--green);
+      text-decoration: none;
+    }
+
+    code {
+      padding: 1px 4px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      background: var(--bg-code);
+      font-size: 12px;
+      color: var(--cyan);
+      word-break: break-word;
+      overflow-wrap: anywhere;
     }
 
     /* header */
@@ -352,59 +408,62 @@
     </section>
 
     <section id="featured-research">
-        <span class="h1">// Featured Research &amp; Advisories</span>
+        <span class="h1">Featured Research &amp; Advisories</span>
         <ul class="project-list">
             <li class="project-item">
                 <a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2026-38964" target="_blank" rel="noopener"><strong>CVE-2026-38964</strong></a>
                 <span class="sev sev-critical">9.3</span> — Conductor-OSS, unauthenticated RCE via unsandboxed GraalVM Python context.
-                [<a href="blog/conductor-python-rce.html">Detailed Writeup</a>]
+                <a href="blog/conductor-python-rce.html" class="highlight-link">Detailed Writeup</a>
             </li>
             <li class="project-item">
                 <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-34979" target="_blank" rel="noopener"><strong>CVE-2026-34979</strong></a>
                 <span class="sev sev-medium">6.9</span> — CUPS scheduler (cupsd), heap buffer overflow in IPP URI attribute copy.
-                [<a href="blog/cups-heap-overflow.html">Detailed Writeup</a>]
+                <a href="blog/cups-heap-overflow.html" class="highlight-link">Detailed Writeup</a>
             </li>
             <li class="project-item">
                 <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-33871" target="_blank" rel="noopener"><strong>CVE-2026-33871</strong></a>
                 <span class="sev sev-high">8.7</span> — Netty, uncapped 0-byte HTTP/2 CONTINUATION frame CPU starvation DoS.
-                [<a href="blog/netty-continuation-flood.html">Detailed Writeup</a>]
+                <a href="blog/netty-continuation-flood.html" class="highlight-link">Detailed Writeup</a>
             </li>
             <li class="project-item">
                 <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-27784" target="_blank" rel="noopener"><strong>CVE-2026-27784</strong></a>
                 <span class="sev sev-high">8.5</span> — nginx, 32-bit integer overflow in <code>ngx_http_mp4_module</code> atom parsing.
-                [<a href="blog/nginx-mp4-overflow.html">Detailed Writeup</a>]
+                <a href="blog/nginx-mp4-overflow.html" class="highlight-link">Detailed Writeup</a>
             </li>
             <li class="project-item">
                 <a href="https://nvd.nist.gov/vuln/detail/CVE-2026-29062" target="_blank" rel="noopener"><strong>CVE-2026-29062</strong></a>
                 <span class="sev sev-high">8.7</span> — jackson-core, nesting depth limit bypass in <code>UTF8DataInputJsonParser</code>.
-                [<a href="blog/jackson-datainput-nesting-bypass.html">Detailed Writeup</a>]
+                <a href="blog/jackson-datainput-nesting-bypass.html" class="highlight-link">Detailed Writeup</a>
             </li>
             <li class="project-item">
                 <a href="https://github.com/FasterXML/jackson-core/security/advisories/GHSA-72hv-8253-57qq" target="_blank" rel="noopener"><strong>GHSA-72hv-8253-57qq</strong></a>
                 <span class="sev sev-high">8.7</span> — jackson-core, maxNumberLength constraint bypass in async non-blocking parser.
-                [<a href="blog/jackson-async-number-bypass.html">Detailed Writeup</a>]
+                <a href="blog/jackson-async-number-bypass.html" class="highlight-link">Detailed Writeup</a>
             </li>
             <li class="project-item">
                 <a href="blog/the_art_of_fuzz.html"><strong>The Art of Fuzz</strong></a> — Closing the semantic gap in black-box vulnerability research with LibLMFuzz and SemTaint.
-                [<a href="blog/the_art_of_fuzz.html">Detailed Writeup</a>]
+                <a href="blog/the_art_of_fuzz.html" class="highlight-link">Detailed Writeup</a>
             </li>
         </ul>
     </section>
 
     <section id="tools">
-        <span class="h1">// Tools Developed</span>
+        <span class="h1">Tools Developed</span>
         <ul class="project-list">
             <li class="project-item">
-                <a href="https://github.com/sprabhav7/argus" target="_blank" rel="noopener"><strong>Argus</strong></a> — Recursive Chromium-based web crawler driven by Playwright for dynamic SPA attack surface discovery, auth-wall detection, and structured JSON reconnaissance. [<a href="https://github.com/sprabhav7/argus" target="_blank" rel="noopener">GitHub</a>]
+                <a href="https://github.com/sprabhav7/argus" target="_blank" rel="noopener"><strong>Argus</strong></a> — Recursive Chromium-based web crawler driven by Playwright for dynamic SPA attack surface discovery, auth-wall detection, and structured JSON reconnaissance.
+                <a href="https://github.com/sprabhav7/argus" target="_blank" rel="noopener" class="highlight-link">GitHub</a>
             </li>
             <li class="project-item">
-                <a href="https://github.com/sprabhav7/DepScan" target="_blank" rel="noopener"><strong>DepScan</strong></a> — Multi-repository software supply chain analysis engine detecting dependency confusion and typosquatting vectors across npm, PyPI, and RubyGems ecosystems. [<a href="https://github.com/sprabhav7/DepScan" target="_blank" rel="noopener">GitHub</a>] [<a href="https://github.com/sprabhav7/DepScan/blob/main/DepScan_Report.pdf" target="_blank" rel="noopener">Report PDF</a>]
+                <a href="https://github.com/sprabhav7/DepScan" target="_blank" rel="noopener"><strong>DepScan</strong></a> — Multi-repository software supply chain analysis engine detecting dependency confusion and typosquatting vectors across npm, PyPI, and RubyGems ecosystems.
+                <a href="https://github.com/sprabhav7/DepScan" target="_blank" rel="noopener" class="highlight-link">GitHub</a>
+                <a href="https://github.com/sprabhav7/DepScan/blob/main/DepScan_Report.pdf" target="_blank" rel="noopener" class="highlight-link">Report PDF</a>
             </li>
         </ul>
     </section>
 
     <section id="writing">
-        <span class="h1"><a href="blog/index.html">// Writing</a></span>
+        <span class="h1"><a href="blog/index.html">Writing</a></span>
         <p>
             Detailed technical write-ups, vulnerability deep-dives, and root-cause analyses are available in the <a href="blog/index.html"><strong>Writing archive &rarr;</strong></a>
         </p>
