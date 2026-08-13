@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+    <meta name="description" content="The Art of Fuzz: Closing the semantic gap in black-box vulnerability research with LibLMFuzz and SemTaint.">
+    <title>The Art of Fuzz: Closing the Semantic Gap with LibLMFuzz and SemTaint | Prabhav Srinath</title>
+    <style>
+    /* ---------------------------------------------------------------
+       Minimal Hacker Theme (Clean, Monospace, Terminal-Focused)
+       --------------------------------------------------------------- */
+
+    :root {
+      --bg:        #191b1d;
+      --bg-alt:    #1f2226;
+      --bg-alt2:   #2a2e35;
+      --bg-code:   #141618;
+      --fg:        #c5c8c6;
+      --fg-bright: #f0f0f0;
+      --muted:     #7c828d;
+      --border:    #2a2e35;
+      --green:     #2bbc8a;
+      --pink:      #d480aa;
+      --red:       #dc6a6a;
+      --orange:    #f99157;
+      --yellow:    #e5c07b;
+      --cyan:      #8abeb7;
+      --blue:      #61afef;
+    }
+
+    *, *:before, *:after { box-sizing: border-box; }
+
+    html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      border-top: 2px solid var(--green);
+      -webkit-text-size-adjust: 100%;
+      background-color: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      background-color: var(--bg);
+      color: var(--fg);
+      font-weight: 400;
+      font-size: 13.5px;
+      font-family: "JetBrains Mono", "Fira Code", "SFMono-Regular", "Menlo", "Consolas", monospace;
+      line-height: 1.7;
+      text-rendering: optimizeLegibility;
+      -moz-osx-font-smoothing: grayscale;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* scrollbar */
+    * { scrollbar-color: #3e4451 transparent; }
+    *::-webkit-scrollbar { width: 6px; height: 6px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background-color: #3e4451; border-radius: 3px; }
+    *::-webkit-scrollbar-thumb:hover { background-color: #5c6370; }
+
+    ::selection { background: var(--green); color: var(--bg); }
+
+    /* layout */
+    .max-width { max-width: 48rem; }
+    .mx-auto   { margin-right: auto; margin-left: auto; }
+    .px3       { padding-right: 1.75rem; padding-left: 1.75rem; }
+    .py4       { padding-top: 3.5rem; padding-bottom: 3.5rem; }
+
+    .content {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      overflow-wrap: break-word;
+    }
+
+    @media (max-width: 480px) {
+      .px3 { padding-right: 1.25rem; padding-left: 1.25rem; }
+      .py4 { padding-top: 2rem; padding-bottom: 2rem; }
+    }
+
+    /* typography */
+    h1, .h1 {
+      display: block;
+      margin-top: 2.25rem;
+      margin-bottom: 0.75rem;
+      color: var(--green);
+      letter-spacing: -0.01em;
+      font-weight: 700;
+      font-size: 1.3em;
+      line-height: 1.4;
+    }
+
+    h2, .h2 {
+      position: relative;
+      display: block;
+      margin-top: 2.25rem;
+      margin-bottom: 0.75rem;
+      color: var(--fg-bright);
+      font-weight: 700;
+      font-size: 1.05em;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.35rem;
+    }
+    h2:before {
+      content: "> ";
+      color: var(--green);
+      opacity: 0.7;
+    }
+
+    h3 {
+      color: var(--yellow);
+      font-weight: 600;
+      font-size: 0.98em;
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    h3:before {
+      content: ":: ";
+      color: var(--cyan);
+      opacity: 0.7;
+    }
+
+    h4 {
+      color: var(--pink);
+      font-weight: 600;
+      font-size: 0.9em;
+      margin-top: 1.2rem;
+      margin-bottom: 0.4rem;
+    }
+
+    p { margin: 0 0 1rem; }
+    @media (min-width: 480px) { p { text-align: justify; } }
+
+    /* links */
+    a {
+      color: var(--fg);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(43, 188, 138, 0.3);
+      transition: all 0.15s ease-in-out;
+    }
+    a:hover {
+      color: var(--green);
+      border-bottom: 1px solid var(--green);
+    }
+
+    /* metadata & badges */
+    .meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 1.75rem;
+    }
+
+    .sev {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 2px;
+      vertical-align: middle;
+      font-family: inherit;
+      border: 1px solid transparent;
+    }
+    .sev-critical { background: rgba(220, 106, 106, 0.15); color: var(--red); border-color: rgba(220, 106, 106, 0.4); }
+    .sev-high     { background: rgba(249, 145, 87, 0.15); color: var(--orange); border-color: rgba(249, 145, 87, 0.4); }
+    .sev-medium   { background: rgba(229, 192, 123, 0.15); color: var(--yellow); border-color: rgba(229, 192, 123, 0.4); }
+
+
+    /* meme container */
+    .meme-container {
+      margin: 2rem auto;
+      text-align: center;
+    }
+    .meme-container img {
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+    }
+    .meme-caption {
+      font-size: 11.5px;
+      color: var(--muted);
+      font-style: italic;
+      margin-top: 0.45rem;
+    }
+
+    /* tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 12.5px;
+    }
+    td, th {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+    th { background: var(--bg-alt); color: var(--fg-bright); font-weight: 600; }
+
+    /* code & pre */
+    pre {
+      padding: 12px 14px;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: var(--bg-code);
+      font-size: 12.5px;
+      line-height: 20px;
+      color: #abb2bf;
+      text-align: left;
+      margin: 1.2rem 0;
+    }
+    pre code { display: block; padding: 0; border: none; background: none; }
+
+    code {
+      padding: 1px 4px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      background: var(--bg-code);
+      font-size: 12px;
+      color: var(--cyan);
+    }
+
+    /* syntax */
+    .c  { color: #5c6370; font-style: italic; }
+    .k  { color: #c678dd; }
+    .s  { color: #98c379; }
+    .n  { color: #d19a66; }
+    .f  { color: #61afef; }
+    .v  { color: #e5c07b; }
+    .hl { color: var(--pink); font-weight: bold; }
+
+    /* header & footer */
+    #header { margin: 0 auto 2.5rem; width: 100%; }
+    #header:after { content: ""; display: table; clear: both; }
+    #header h1 { margin: 0; color: var(--fg-bright); font-weight: 700; font-size: 1.4rem; line-height: 2rem; letter-spacing: -0.01em; }
+    #header a { border-bottom: none; color: inherit; }
+    #header #logo {
+      display: inline-block;
+      float: left;
+      margin-right: 18px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background-color: var(--bg-alt2);
+      background-size: cover;
+      border: 1px solid var(--border);
+    }
+    #header #nav { color: var(--green); font-size: 0.82rem; margin-top: 4px; }
+    #header #nav ul { margin: 0; padding: 0; list-style-type: none; line-height: 15px; }
+    #header #nav ul a { margin-right: 12px; color: var(--green); border-bottom: none; }
+    #header #nav ul a:hover { color: var(--pink); border-bottom: 1px dotted var(--pink); }
+    #header #nav ul li { display: inline-block; margin-right: 12px; border-right: 1px solid var(--border); vertical-align: middle; }
+    #header #nav ul li:last-child { margin-right: 0; border-right: 0; }
+
+    /* blinking caret */
+    .caret { color: var(--green); animation: blink 1s step-end infinite; }
+    @keyframes blink { from, to { opacity: 1; } 50% { opacity: 0; } }
+
+    #footer {
+      margin-top: 4rem;
+      margin-bottom: 10px;
+      width: 100%;
+      color: var(--muted);
+      text-align: center;
+      font-size: 11.5px;
+      border-top: 1px solid var(--border);
+      padding-top: 1.5rem;
+    }
+    #footer ul { margin: 0; padding: 0; list-style: none; }
+    #footer li { display: inline-block; margin-right: 12px; border-right: 1px solid var(--border); }
+    #footer li:last-child { margin-right: 0; border-right: 0; }
+    #footer a { color: var(--muted); border-bottom: none; }
+    #footer a:hover { color: var(--fg-bright); border-bottom: 1px dotted var(--fg-bright); }
+
+    @media (min-width: 39rem) {
+      #footer { display: flex; justify-content: space-between; align-items: center; }
+    }
+    </style>
+</head>
+<body class="max-width mx-auto px3 ltr">
+
+<div class="content post py4">
+
+    <header id="header">
+        <a href="../index.html">
+            <div id="logo" style="background-image: url(https://avatars.githubusercontent.com/u/122600613?s=400&u=2bb009eea270509b62e5d643bb40d767ac275136&v=4);"></div>
+            <div id="title">
+                <h1>prabhav<span class="caret">_</span></h1>
+            </div>
+        </a>
+        <div id="nav">
+            <ul>
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="index.html">Writing</a></li>
+                <li><a href="https://github.com/sprabhav7" target="_blank" rel="noopener">Projects</a></li>
+                <li><a href="https://linkedin.com/in/prabhav-srinath" target="_blank" rel="noopener">LinkedIn</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <article>
+        <header>
+            <h1 class="posttitle">The Art of Fuzz: Closing the Semantic Gap with LibLMFuzz and SemTaint</h1>
+            <div class="meta">
+                <span class="author">Prabhav Srinath</span> |
+                <span class="postdate"><time datetime="2026-05">May 2026</time></span> |
+                <span>Methodology &amp; Architecture</span>
+            </div>
+        </header>
+
+        <div class="content">
+
+            <h2>TL;DR</h2>
+            <p>
+                Coverage-guided fuzzers know when they've hit a new branch. They have zero idea what that branch <em>means</em>. That disconnect — the "semantic gap" between low-level instruction execution and high-level developer intent — is where the deepest architectural security bugs hide. I've spent the past year building and refining two systems to close this gap: <strong>SemTaint</strong> (a multi-agent LLM framework that extracts intent-aware semantic taint specifications from stripped binaries) and <strong>LibLMFuzz</strong> (an agentic self-repairing fuzz driver generator with compiler diagnostic feedback). Together with targeted manual research, they powered the discovery of high-severity CVEs across CUPS, Netty, Jackson, and nginx.
+            </p>
+
+            <h2>The Bottleneck Was Never Execution Speed</h2>
+            <p>
+                Modern security auditing is a race between software complexity and human bandwidth. Tech stacks are taller than ever: enterprise orchestration engines, JIT polyglot runtimes, and high-throughput network event loops.
+            </p>
+            <p>
+                You cannot read code exponentially faster. The <a href="cups-heap-overflow.html">CUPS heap overflow (CVE-2026-34979)</a>, the <a href="netty-continuation-flood.html">Netty CONTINUATION flood (CVE-2026-33871)</a>, the <a href="nginx-mp4-overflow.html">nginx integer overflow (CVE-2026-27784)</a>, and the <a href="jackson-async-number-bypass.html">Jackson async bypass (GHSA-72hv-8253-57qq)</a> were not accidental finds. They were systematically surfaced by shifting how we model code invariants and auditing where automated analysis flags anomalous patterns.
+            </p>
+
+            <h2>Three Eras of Fuzzing</h2>
+            <ol>
+                <li>
+                    <strong>Era 1: "Dumb" Black-Box Fuzzing:</strong> Throw random bytes at <code>stdin</code> or sockets and listen for segfaults. Great for 1995 file parsers; useless for nested JSON or HTTP/2 frame streams.
+                </li>
+                <li>
+                    <strong>Era 2: Coverage-Guided Grey-Box Fuzzing (AFL, libFuzzer):</strong> Instrument basic blocks, track edge transitions, and prioritize seeds that increase code coverage. This was revolutionary, but it hit a hard ceiling: <em>it is semantically blind</em>. It knows a branch flipped; it doesn't know that flipping that branch dropped a security validation check.
+                </li>
+                <li>
+                    <strong>Era 3: Symbolic &amp; Directed Fuzzing:</strong> Use SMT solvers (Z3) to solve constraints and force execution down deep paths. Powerful, but notoriously susceptible to state explosion and path explosion in large codebases.
+                </li>
+            </ol>
+
+            <h2>Where LLMs Actually Matter (Beyond the Hype)</h2>
+            <p>
+                There's a lot of noise about "AI finding 0-days." LLMs cannot magically find bugs out of thin air. What LLMs excel at is the <strong>semantic translation layer</strong>: inferring developer intent from disassembly, variable naming, and API contracts.
+            </p>
+
+            <h3>1. SemTaint: Intent-Aware Taint Analysis</h3>
+            <p>
+                When you audit a stripped binary or a closed dynamic library, variable names and types are wiped out. Traditional Datalog taint engines track register flows (e.g. <code>RAX &rarr; RDI</code>), but they cannot answer: <em>"Is this register supposed to be an upper bound or a current offset?"</em>
+            </p>
+            <p>
+                <strong>SemTaint</strong> uses a multi-agent pipeline to reconstruct intent:
+            </p>
+            <ul>
+                <li><strong>Decompilation Specialist:</strong> Analyzes control-flow graphs (Ghidra/IDA decompiler output).</li>
+                <li><strong>Specification Agent:</strong> Assigns semantic roles to registers (e.g., <code>[RSI+8] = user_controlled_length</code>, <code>[RDI+16] = allocated_capacity</code>).</li>
+                <li><strong>Differential Invariant Verifier:</strong> Compares sibling execution branches to flag dropped checks (how we spotted the missing <code>validateIntegerLength()</code> in Jackson's async path).</li>
+            </ul>
+
+            <h3>2. LibLMFuzz: The Agentic Self-Repairing Loop</h3>
+            <p>
+                Writing stable libFuzzer harnesses for black-box or stripped libraries is tedious. You need exact struct definitions, correct memory initialization, and proper API linkage.
+            </p>
+            <p>
+                <strong>LibLMFuzz</strong> automates this using an agentic feedback cycle:
+            </p>
+
+            <pre><code><span class="c">// The LibLMFuzz Agentic Repair Loop</span>
+<span class="n">1.</span> <span class="k">Extract</span>  Exported symbols and ABI conventions from binary headers / disassembly.
+<span class="n">2.</span> <span class="k">Generate</span> Initial C/C++ libFuzzer harness with LLVMFuzzerTestOneInput.
+<span class="n">3.</span> <span class="k">Compile</span>  Run clang with ASan/UBSan instrumentation and capture stderr diagnostics.
+<span class="n">4.</span> <span class="hl">Self-Repair</span>: Agent inspects compiler error + disassembly to resolve types:
+             <span class="s">"Fixed incomplete type: inferred struct size 0x48 from memset in target."</span>
+<span class="n">5.</span> <span class="k">Execute</span>  Run fuzzer with corpus generation and coverage monitoring.</code></pre>
+
+            <h2>Real-World Battle-Tested Impact</h2>
+            <table>
+                <tr>
+                    <th>Vulnerability</th>
+                    <th>How SemTaint &amp; LibLMFuzz Cracked It</th>
+                </tr>
+                <tr>
+                    <td><strong><a href="cups-heap-overflow.html">CUPS Heap Overflow</a></strong> (CVE-2026-34979)</td>
+                    <td>SemTaint identified the discrepancy where <code>ipp_length()</code> omitted <code>IPP_TAG_URI</code> during sizing while <code>get_options()</code> wrote it out. LibLMFuzz crafted valid IPP packets to trigger the heap overwrite.</td>
+                </tr>
+                <tr>
+                    <td><strong><a href="netty-continuation-flood.html">Netty CONTINUATION Flood</a></strong> (CVE-2026-33871)</td>
+                    <td>Semantic analysis revealed that <code>maxHeaderListSizeGoAway</code> evaluated byte counts rather than frame transactions. LibLMFuzz generated streams of valid 0-byte frames to bypass byte guards.</td>
+                </tr>
+            </table>
+
+            <h2>Where Security Research Is Headed</h2>
+            <p>
+                We are transitioning from the era of manual harness crafting to the era of the <strong>Strategic Security Orchestrator</strong>. The researcher's role is shifting toward hypothesis formation, threat modeling, and differential analysis — asking the questions that automated tools are blind to.
+            </p>
+
+            <h2>References &amp; Further Reading</h2>
+            <ul>
+                <li>I. Hardgrove and J. D. Hastings, <em>"LibLMFuzz: LLM-Augmented Fuzz Target Generation for Black-box Libraries,"</em> arXiv:2507.15058, 2025.</li>
+                <li><em>"Multi-Agent Taint Specification Extraction for Vulnerability Detection,"</em> arXiv:2601.10865, Jan. 2026.</li>
+                <li><a href="https://www.fuzzingbook.org/" target="_blank" rel="noopener">A. Zeller, "The Fuzzing Book," CISPA Helmholtz Center</a></li>
+                <li><a href="https://github.com/google/oss-fuzz" target="_blank" rel="noopener">Google OSS-Fuzz Project</a></li>
+            </ul>
+
+        </div>
+    </article>
+
+    <footer id="footer">
+        <div class="footer-left">
+            &copy; 2026 Prabhav Srinath
+        </div>
+        <div class="footer-right">
+            <nav>
+                <ul>
+                    <li><a href="../index.html">Home</a></li>
+                    <li><a href="index.html">Writing</a></li>
+                    <li><a href="https://github.com/sprabhav7" target="_blank" rel="noopener">Projects</a></li>
+                    <li><a href="https://linkedin.com/in/prabhav-srinath" target="_blank" rel="noopener">LinkedIn</a></li>
+                </ul>
+            </nav>
+        </div>
+    </footer>
+
+</div>
+</body>
+</html>
