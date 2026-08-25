@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+    <meta name="description" content="GHSA-68h6-5qgp-3975 — Stack-based buffer overflow in BlueZ's bluetoothd name2utf8 function allows remote unauthenticated attackers within Bluetooth range to trigger a DoS or execute arbitrary code.">
+    <title>Three Bytes Too Many: Stack Buffer Overflow in BlueZ (GHSA-68h6-5qgp-3975) | Prabhav Srinath</title>
+    <style>
+    /* ---------------------------------------------------------------
+       Minimal Hacker Theme (Clean, Monospace, Terminal-Focused)
+       --------------------------------------------------------------- */
+
+    :root {
+      --bg:        #191b1d;
+      --bg-alt:    #1f2226;
+      --bg-alt2:   #2a2e35;
+      --bg-code:   #141618;
+      --fg:        #c5c8c6;
+      --fg-bright: #f0f0f0;
+      --muted:     #7c828d;
+      --border:    #2a2e35;
+      --green:     #2bbc8a;
+      --pink:      #d480aa;
+      --red:       #dc6a6a;
+      --orange:    #f99157;
+      --yellow:    #e5c07b;
+      --cyan:      #8abeb7;
+      --blue:      #61afef;
+    }
+
+    *, *:before, *:after { box-sizing: border-box; }
+
+    html {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      border-top: 2px solid var(--green);
+      -webkit-text-size-adjust: 100%;
+      background-color: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      background-color: var(--bg);
+      color: var(--fg);
+      font-weight: 400;
+      font-size: 13.5px;
+      font-family: "JetBrains Mono", "Fira Code", "SFMono-Regular", "Menlo", "Consolas", monospace;
+      line-height: 1.7;
+      text-rendering: optimizeLegibility;
+      -moz-osx-font-smoothing: grayscale;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      width: 100%;
+    }
+
+    /* scrollbar */
+    * { scrollbar-color: #3e4451 transparent; }
+    *::-webkit-scrollbar { width: 6px; height: 6px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background-color: #3e4451; border-radius: 3px; }
+    *::-webkit-scrollbar-thumb:hover { background-color: #5c6370; }
+
+    ::selection { background: var(--green); color: var(--bg); }
+
+    /* layout */
+    .max-width { max-width: 48rem; width: 100%; }
+    .mx-auto   { margin-right: auto; margin-left: auto; }
+    .px3       { padding-right: 1.75rem; padding-left: 1.75rem; }
+    .py4       { padding-top: 3.5rem; padding-bottom: 3.5rem; }
+
+    .content {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      overflow-wrap: break-word;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    article, .post-content, section {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    @media (max-width: 480px) {
+      .px3 { padding-right: 1.25rem; padding-left: 1.25rem; }
+      .py4 { padding-top: 2rem; padding-bottom: 2rem; }
+    }
+
+    /* typography */
+    h1, .h1 {
+      display: block;
+      margin-top: 2.25rem;
+      margin-bottom: 0.75rem;
+      color: var(--green);
+      letter-spacing: -0.01em;
+      font-weight: 700;
+      font-size: 1.3em;
+      line-height: 1.4;
+    }
+
+    h2, .h2 {
+      position: relative;
+      display: block;
+      margin-top: 2.25rem;
+      margin-bottom: 0.75rem;
+      color: var(--fg-bright);
+      font-weight: 700;
+      font-size: 1.05em;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.35rem;
+    }
+    h2:before {
+      content: "> ";
+      color: var(--green);
+      opacity: 0.7;
+    }
+
+    h3 {
+      color: var(--yellow);
+      font-weight: 600;
+      font-size: 0.98em;
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    h3:before {
+      content: ":: ";
+      color: var(--cyan);
+      opacity: 0.7;
+    }
+
+    h4 {
+      color: var(--pink);
+      font-weight: 600;
+      font-size: 0.9em;
+      margin-top: 1.2rem;
+      margin-bottom: 0.4rem;
+    }
+
+    p { margin: 0 0 1rem; }
+    @media (min-width: 480px) { p { text-align: justify; } }
+
+    /* links */
+    a {
+      color: var(--green);
+      text-decoration: underline;
+      text-decoration-color: rgba(43, 188, 138, 0.4);
+      text-underline-offset: 2.5px;
+      text-decoration-thickness: 1px;
+      transition: all 0.15s ease-in-out;
+    }
+    a:hover {
+      color: var(--pink);
+      text-decoration-color: var(--pink);
+    }
+
+    /* metadata & badges */
+    .meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 1.75rem;
+    }
+
+    .sev {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 2px;
+      vertical-align: middle;
+      font-family: inherit;
+      border: 1px solid transparent;
+    }
+    .sev-critical { background: rgba(220, 106, 106, 0.15); color: var(--red); border-color: rgba(220, 106, 106, 0.4); }
+    .sev-high     { background: rgba(249, 145, 87, 0.15); color: var(--orange); border-color: rgba(249, 145, 87, 0.4); }
+    .sev-medium   { background: rgba(229, 192, 123, 0.15); color: var(--yellow); border-color: rgba(229, 192, 123, 0.4); }
+
+    /* tables */
+    table {
+      width: 100%;
+      max-width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 12.5px;
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    td, th {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      text-align: left;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+    th { background: var(--bg-alt); color: var(--fg-bright); font-weight: 600; }
+
+    /* code & pre */
+    pre {
+      padding: 12px 14px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: var(--bg-code);
+      font-size: 12.5px;
+      line-height: 20px;
+      color: #abb2bf;
+      text-align: left;
+      margin: 1.2rem 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    pre code {
+      display: block;
+      padding: 0;
+      border: none;
+      background: none;
+      white-space: pre;
+      word-break: normal;
+      overflow-wrap: normal;
+    }
+
+    code {
+      padding: 1px 4px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      background: var(--bg-code);
+      font-size: 12px;
+      color: var(--cyan);
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    /* syntax */
+    .c  { color: #5c6370; font-style: italic; }
+    .k  { color: #c678dd; }
+    .s  { color: #98c379; }
+    .n  { color: #d19a66; }
+    .f  { color: #61afef; }
+    .v  { color: #e5c07b; }
+    .hl { color: var(--pink); font-weight: bold; }
+
+    /* header & footer */
+    #header { margin: 0 auto 2.5rem; width: 100%; }
+    #header:after { content: ""; display: table; clear: both; }
+    #header h1 { margin: 0; color: var(--fg-bright); font-weight: 700; font-size: 1.4rem; line-height: 2rem; letter-spacing: -0.01em; }
+    #header a { border-bottom: none; color: inherit; }
+    #header #logo {
+      display: inline-block;
+      float: left;
+      margin-right: 18px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background-color: var(--bg-alt2);
+      background-size: cover;
+      border: 1px solid var(--border);
+    }
+    #header #nav { color: var(--green); font-size: 0.82rem; margin-top: 4px; }
+    #header #nav ul { margin: 0; padding: 0; list-style-type: none; line-height: 15px; }
+    #header #nav ul a { margin-right: 12px; color: var(--green); border-bottom: none; }
+    #header #nav ul a:hover { color: var(--pink); border-bottom: 1px dotted var(--pink); }
+    #header #nav ul li { display: inline-block; margin-right: 12px; border-right: 1px solid var(--border); vertical-align: middle; }
+    #header #nav ul li:last-child { margin-right: 0; border-right: 0; }
+
+    /* blinking caret */
+    .caret { color: var(--green); animation: blink 1s step-end infinite; }
+    @keyframes blink { from, to { opacity: 1; } 50% { opacity: 0; } }
+
+    #footer {
+      margin-top: 4rem;
+      margin-bottom: 10px;
+      width: 100%;
+      color: var(--muted);
+      text-align: center;
+      font-size: 11.5px;
+      border-top: 1px solid var(--border);
+      padding-top: 1.5rem;
+    }
+    #footer ul { margin: 0; padding: 0; list-style: none; }
+    #footer li { display: inline-block; margin-right: 12px; border-right: 1px solid var(--border); }
+    #footer li:last-child { margin-right: 0; border-right: 0; }
+    #footer a { color: var(--muted); border-bottom: none; }
+    #footer a:hover { color: var(--fg-bright); border-bottom: 1px dotted var(--fg-bright); }
+
+    @media (min-width: 39rem) {
+      #footer { display: flex; justify-content: space-between; align-items: center; }
+    }
+    </style>
+</head>
+<body class="max-width mx-auto px3 ltr">
+
+<div class="content post py4">
+
+    <header id="header">
+        <a href="../index.html">
+            <div id="logo" style="background-image: url(https://avatars.githubusercontent.com/u/122600613?s=400&u=2bb009eea270509b62e5d643bb40d767ac275136&v=4);"></div>
+            <div id="title">
+                <h1>prabhav<span class="caret">_</span></h1>
+            </div>
+        </a>
+        <div id="nav">
+            <ul>
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="index.html">Writing</a></li>
+                <li><a href="https://github.com/sprabhav7" target="_blank" rel="noopener">Projects</a></li>
+                <li><a href="https://linkedin.com/in/prabhav-srinath" target="_blank" rel="noopener">LinkedIn</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <article>
+        <header>
+            <h1 class="posttitle">Three Bytes Too Many: Stack Buffer Overflow in BlueZ (GHSA-68h6-5qgp-3975)</h1>
+            <div class="meta">
+                <span class="author">Prabhav Srinath</span> |
+                <span class="postdate"><time datetime="2026-08">August 2026</time></span> |
+                <span>GHSA-68h6-5qgp-3975</span> |
+                <span class="sev sev-high">CVSS 7.2 High</span>
+            </div>
+        </header>
+
+        <div class="content">
+
+            <h2>TL;DR</h2>
+            <p>
+                A stack-based buffer overflow vulnerability exists in BlueZ, the Linux Bluetooth protocol stack. The vulnerability resides in the <code>name2utf8</code> function inside <code>src/eir.c</code>. When parsing Extended Inquiry Response (EIR) payloads, the bluetooth daemon (<code>bluetoothd</code>) allocates a 250-byte stack buffer for the device name. If a remote attacker within Bluetooth radio range broadcasts a specially crafted EIR packet carrying a device friendly name of 254 bytes, the parsed name length passed to the conversion function is 253 bytes. The daemon then copies 253 bytes into the 250-byte stack buffer using <code>strncpy</code>, resulting in a 3-byte stack overflow. This leads to an immediate Denial of Service (DoS) crash of <code>bluetoothd</code> and may allow for remote code execution (RCE) on systems with weak stack protections.
+            </p>
+
+            <h2>The Vulnerability Deep Dive</h2>
+            <p>
+                The vulnerability is located in the <code>name2utf8</code> helper function inside <code>src/eir.c</code>. This function converts Bluetooth device names (retrieved from EIR packets during active discovery) into UTF-8.
+            </p>
+
+            <h3>The Vulnerable Code</h3>
+            <p>
+                Let's inspect the conversion function implementation:
+            </p>
+            <pre><code><span class="c">// src/eir.c — name2utf8()</span>
+<span class="k">static char</span> *<span class="f">name2utf8</span>(<span class="k">const uint8_t</span> *name, <span class="k">uint8_t</span> len)
+{
+    <span class="k">char</span> utf8_name[<span class="v">HCI_MAX_NAME_LENGTH</span> + <span class="n">2</span>]; <span class="c">// 248 + 2 = 250 bytes</span>
+
+    <span class="f">memset</span>(utf8_name, <span class="n">0</span>, <span class="k">sizeof</span>(utf8_name));
+    <span class="hl">strncpy(utf8_name, (char *) name, len);</span>   <span class="c">// ← STACK BUFFER OVERFLOW!</span>
+    ...
+}</code></pre>
+            <p>
+                Here is how the overflow occurs step-by-step:
+            </p>
+            <ul>
+                <li>The buffer <code>utf8_name</code> is declared on the stack with a size of <code>HCI_MAX_NAME_LENGTH + 2</code>. Since <code>HCI_MAX_NAME_LENGTH</code> is defined as <code>248</code> in <code>lib/bluetooth/hci.h</code>, the stack buffer size is exactly <strong>250 bytes</strong>.</li>
+                <li>The <code>len</code> parameter is a <code>uint8_t</code>, which represents the length of the name field extracted from the incoming EIR packet.</li>
+                <li>When the daemon processes an EIR name field with a field length of <code>254</code> (the maximum field size is 255), <code>eir_parse</code> subtracts 1 byte (for the field type header) and passes the remaining <code>253</code> bytes as the <code>len</code> argument.</li>
+                <li>Inside <code>name2utf8</code>, the call to <code>strncpy(utf8_name, (char *) name, 253)</code> attempts to write 253 bytes into the 250-byte buffer. This causes an out-of-bounds stack write of exactly <strong>3 bytes</strong>.</li>
+            </ul>
+
+            <h3>Exploitation &amp; Impact</h3>
+            <p>
+                Although a 3-byte overflow is small, it occurs directly on the stack frame. Depending on target compiler settings, optimization levels, and stack layout, these 3 bytes can overwrite adjacent critical stack memory. Specifically, it can corrupt control structures like the saved frame pointer, the lowest bytes of the return address, or the stack canary itself.
+            </p>
+            <p>
+                On platforms lacking active compiler hardening (such as stack canaries/protections) or with predictable layouts, this stack corruption allows an attacker to alter the execution flow and potentially achieve remote code execution (RCE). At a minimum, triggering this overflow immediately crashes the user-space Bluetooth daemon (<code>bluetoothd</code>) with a segmentation fault, creating a zero-click Denial of Service (DoS) for all Bluetooth functionality on the target machine.
+            </p>
+
+            <h2>Proof of Concept</h2>
+            <p>
+                The following standalone C reproduction isolates the vulnerable name conversion logic and calls it with a 253-byte payload to demonstrate the stack corruption:
+            </p>
+            <pre><code><span class="c">// poc.c — EIR Stack Buffer Overflow PoC</span>
+<span class="k">#include</span> <span class="s">&lt;stdio.h&gt;</span>
+<span class="k">#include</span> <span class="s">&lt;stdlib.h&gt;</span>
+<span class="k">#include</span> <span class="s">&lt;string.h&gt;</span>
+<span class="k">#include</span> <span class="s">&lt;stdint.h&gt;</span>
+
+<span class="k">#define</span> <span class="v">HCI_MAX_NAME_LENGTH</span> <span class="n">248</span>
+
+<span class="k">static void</span> <span class="f">trigger_overflow</span>(<span class="k">const uint8_t</span> *name, <span class="k">uint8_t</span> len)
+{
+    <span class="k">char</span> utf8_name[<span class="v">HCI_MAX_NAME_LENGTH</span> + <span class="n">2</span>]; <span class="c">// 250 bytes</span>
+    <span class="f">memset</span>(utf8_name, <span class="n">0</span>, <span class="k">sizeof</span>(utf8_name));
+    <span class="hl">strncpy(utf8_name, (char *)name, len);</span>   <span class="c">// Overflows here</span>
+
+    <span class="f">printf</span>(<span class="s">"[+] Copy completed.\n"</span>);
+}
+
+<span class="k">int</span> <span class="f">main</span>(<span class="k">void</span>)
+{
+    <span class="k">uint8_t</span> name_len = <span class="n">253</span>;
+    <span class="k">uint8_t</span> malicious_name[<span class="n">253</span>];
+    <span class="f">memset</span>(malicious_name, <span class="s">'A'</span>, <span class="k">sizeof</span>(malicious_name));
+
+    <span class="f">printf</span>(<span class="s">"=== EIR Stack Buffer Overflow PoC ===\n"</span>);
+    <span class="f">trigger_overflow</span>(malicious_name, name_len);
+    <span class="f">printf</span>(<span class="s">"[!] Execution completed without crashing. (ASan not enabled?)\n"</span>);
+
+    <span class="k">return</span> <span class="n">0;</span>
+}</code></pre>
+            <p>
+                To trace the memory violation, compile the program with AddressSanitizer (ASan) enabled:
+            </p>
+            <pre><code>$ gcc -fsanitize=address -g -o poc_runner poc.c
+$ ./poc_runner</code></pre>
+            <p>
+                Running the binary immediately halts the execution with an ASan stack-buffer-overflow trace, detailing the out-of-bounds write past the boundary of <code>utf8_name</code>.
+            </p>
+
+            <h2>The Fix</h2>
+            <p>
+                The BlueZ maintainers resolved the issue in Pull Request #2339 (<em>"eir: bound remote name length to the local buffer in name2utf8"</em>). The copy length is strictly bounded to the size of the destination stack buffer (leaving room for the null terminator) to prevent stack memory corruption regardless of the size passed in from the EIR payload.
+            </p>
+
+            <h2>Takeaways</h2>
+            <p>
+                Wireless protocol parsers handle completely untrusted input at a highly privileged layer of the operating system. Even standard libc utilities like <code>strncpy</code> require strict parameter constraints based on local destination sizes, rather than trusting protocol-level maximum field values.
+            </p>
+
+            <h2>Advisory Telemetry</h2>
+            <table>
+                <tr><th>Field</th><th>Details</th></tr>
+                <tr><td>Advisory ID</td><td><a href="https://github.com/bluez/bluez/security/advisories/GHSA-68h6-5qgp-3975" target="_blank" rel="noopener">GHSA-68h6-5qgp-3975</a></td></tr>
+                <tr><td>CVSS 4.0 Score</td><td><span class="sev sev-high">7.2 (High)</span></td></tr>
+                <tr><td>Vector String</td><td><code>CVSS:4.0/AV:A/AC:L/AT:N/PR:N/UI:N/VC:L/VI:L/VA:H/SC:N/SI:N/SA:N</code></td></tr>
+                <tr><td>CWE</td><td>CWE-121: Stack-based Buffer Overflow</td></tr>
+                <tr><td>Affected Software</td><td>BlueZ (bluetoothd)</td></tr>
+            </table>
+
+        </div>
+    </article>
+
+    <footer id="footer">
+        <div class="footer-left">
+            &copy; 2026 Prabhav Srinath
+        </div>
+        <div class="footer-right">
+            <nav>
+                <ul>
+                    <li><a href="../index.html">Home</a></li>
+                    <li><a href="index.html">Writing</a></li>
+                    <li><a href="https://github.com/sprabhav7" target="_blank" rel="noopener">Projects</a></li>
+                    <li><a href="https://linkedin.com/in/prabhav-srinath" target="_blank" rel="noopener">LinkedIn</a></li>
+                </ul>
+            </nav>
+        </div>
+    </footer>
+
+</div>
+</body>
+</html>
