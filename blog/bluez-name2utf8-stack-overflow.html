@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
-    <meta name="description" content="GHSA-68h6-5qgp-3975 — Stack-based buffer overflow in BlueZ's bluetoothd name2utf8 function allows remote unauthenticated attackers within Bluetooth range to trigger a DoS or execute arbitrary code.">
-    <title>Three Bytes Too Many: Stack Buffer Overflow in BlueZ (GHSA-68h6-5qgp-3975) | Prabhav Srinath</title>
+    <meta name="description" content="CVE-2026-80186 — Stack-based buffer overflow in BlueZ's bluetoothd name2utf8 function allows remote unauthenticated attackers within Bluetooth range to trigger a DoS or execute arbitrary code.">
+    <title>Three Bytes Too Many: Stack Buffer Overflow in BlueZ (CVE-2026-80186) | Prabhav Srinath</title>
     <style>
     /* ---------------------------------------------------------------
        Minimal Hacker Theme (Clean, Monospace, Terminal-Focused)
@@ -320,11 +320,11 @@
 
     <article>
         <header>
-            <h1 class="posttitle">Three Bytes Too Many: Stack Buffer Overflow in BlueZ (GHSA-68h6-5qgp-3975)</h1>
+            <h1 class="posttitle">Three Bytes Too Many: Stack Buffer Overflow in BlueZ (CVE-2026-80186)</h1>
             <div class="meta">
                 <span class="author">Prabhav Srinath</span> |
                 <span class="postdate"><time datetime="2026-08">August 2026</time></span> |
-                <span>GHSA-68h6-5qgp-3975</span> |
+                <span>CVE-2026-80186</span> |
                 <span class="sev sev-high">CVSS 7.2 High</span>
             </div>
         </header>
@@ -427,12 +427,18 @@ $ ./poc_runner</code></pre>
             <h2>Advisory Telemetry</h2>
             <table>
                 <tr><th>Field</th><th>Details</th></tr>
-                <tr><td>Advisory ID</td><td><a href="https://github.com/bluez/bluez/security/advisories/GHSA-68h6-5qgp-3975" target="_blank" rel="noopener">GHSA-68h6-5qgp-3975</a></td></tr>
+                <tr><td>CVE ID</td><td><a href="https://www.cve.org/CVERecord?id=CVE-2026-80186" target="_blank" rel="noopener">CVE-2026-80186</a></td></tr>
                 <tr><td>CVSS 4.0 Score</td><td><span class="sev sev-high">7.2 (High)</span></td></tr>
                 <tr><td>Vector String</td><td><code>CVSS:4.0/AV:A/AC:L/AT:N/PR:N/UI:N/VC:L/VI:L/VA:H/SC:N/SI:N/SA:N</code></td></tr>
                 <tr><td>CWE</td><td>CWE-121: Stack-based Buffer Overflow</td></tr>
                 <tr><td>Affected Software</td><td>BlueZ (bluetoothd)</td></tr>
             </table>
+
+            <h2>References</h2>
+            <ul>
+                <li><a href="https://github.com/bluez/bluez/security/advisories/GHSA-68h6-5qgp-3975" target="_blank" rel="noopener">GitHub Advisory: GHSA-68h6-5qgp-3975</a></li>
+                <li><a href="https://www.cve.org/CVERecord?id=CVE-2026-80186" target="_blank" rel="noopener">CVE.org Record</a></li>
+            </ul>
 
         </div>
     </article>
